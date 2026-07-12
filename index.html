@@ -101,7 +101,7 @@
             font-weight: 700;
         }
 
-        /* Main Workspace split layout using table fallback style / block layout for wide styling */
+        /* Main Workspace split layout */
         .workspace {
             display: flex;
             gap: 24px;
@@ -190,6 +190,12 @@
             background-color: #4338ca;
         }
 
+        button:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
         /* Table Styling */
         .table-container {
             overflow-x: auto;
@@ -245,20 +251,14 @@
         .badge-bike { background: rgba(30, 144, 255, 0.2); color: #1e90ff; }
         .badge-strength { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
 
-        .clear-btn {
-            background-color: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border-color);
-            width: auto;
-            padding: 6px 12px;
-            font-size: 12px;
-            margin-top: 0;
+        .status-msg {
+            font-size: 13px;
+            margin-top: 8px;
+            text-align: center;
+            display: none;
         }
-        .clear-btn:hover {
-            background-color: rgba(255, 71, 87, 0.1);
-            color: var(--accent-run);
-            border-color: var(--accent-run);
-        }
+        .status-success { color: #2ed573; }
+        .status-error { color: #ff4757; }
 
         @media (max-width: 768px) {
             .workspace {
@@ -276,9 +276,8 @@
     <header>
         <div>
             <h1>Fitness Tracker</h1>
-            <div class="subtitle">Unified ledger formatting for your active metrics</div>
+            <div class="subtitle">Cloud-connected ledger database app</div>
         </div>
-        <button class="clear-btn" onclick="clearData()">Clear Browser Storage</button>
     </header>
 
     <!-- Stats Dashboard Area -->
@@ -362,13 +361,14 @@
                     <textarea id="notes" rows="3" placeholder="Good things, family updates, sleep, etc..."></textarea>
                 </div>
 
-                <button type="submit">Save Entry</button>
+                <button type="submit" id="submitBtn">Save Entry to Cloud</button>
+                <div id="statusMessage" class="status-msg"></div>
             </form>
         </div>
 
         <!-- History Ledger Section -->
         <div class="history-section">
-            <h2>Activity History Log</h2>
+            <h2>Session History (This Device)</h2>
             <div class="table-container">
                 <table>
                     <thead>
@@ -391,28 +391,26 @@
 </div>
 
 <script>
-    // Load initial data or fallback to sample row based on your sheet sample
-    let fitnessData = JSON.parse(localStorage.getItem('fitnessData')) || [
-        {
-            date: '2026-03-30',
-            runTime: 40,
-            bikeTime: 30,
-            strengthTime: 80,
-            deficit: 350,
-            crunches: 0,
-            pullups: 50,
-            weight: '',
-            alcohol: '',
-            notes: 'Office day. Sleeping well.'
-        }
-    ];
+    // Your Google Apps Script Web App URL
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
+
+    // Track locally so user gets instant visual confirmation 
+    let fitnessData = JSON.parse(localStorage.getItem('fitnessData')) || [];
 
     // Auto-set modern input date to today
     document.getElementById('date').valueAsDate = new Date();
 
     const form = document.getElementById('activityForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusMessage = document.getElementById('statusMessage');
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        
+        // Disable button & give immediate submission state UI update
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Saving to Google Sheet...";
+        statusMessage.style.display = "none";
         
         const entry = {
             date: document.getElementById('date').value,
@@ -427,23 +425,49 @@
             notes: document.getElementById('notes').value || ''
         };
 
-        // Prevent duplicate date entries by overwriting or push new
-        const existingIdx = fitnessData.findIndex(item => item.date === entry.date);
-        if(existingIdx > -1) {
-            fitnessData[existingIdx] = entry;
-        } else {
-            fitnessData.push(entry);
-        }
-
-        // Sort data chronologically descending (newest first)
-        fitnessData.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        localStorage.setItem('fitnessData', JSON.stringify(fitnessData));
-        form.reset();
-        document.getElementById('date').valueAsDate = new Date();
-        
-        renderDashboard();
+        // Send payload via Fetch directly to your deployed Apps Script URL
+        fetch(CLOUD_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Essential for Apps Script cross-origin POST handling
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(entry)
+        })
+        .then(() => {
+            // Success response actions
+            showStatus("Entry saved successfully to Google Sheets!", true);
+            
+            // Sync current device storage state visual look
+            const existingIdx = fitnessData.findIndex(item => item.date === entry.date);
+            if(existingIdx > -1) {
+                fitnessData[existingIdx] = entry;
+            } else {
+                fitnessData.push(entry);
+            }
+            fitnessData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            localStorage.setItem('fitnessData', JSON.stringify(fitnessData));
+            
+            // UI Reset
+            form.reset();
+            document.getElementById('date').valueAsDate = new Date();
+            renderDashboard();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showStatus("Failed to save to cloud. Try again.", false);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Save Entry to Cloud";
+        });
     });
+
+    function showStatus(msg, isSuccess) {
+        statusMessage.innerText = msg;
+        statusMessage.className = "status-msg " + (isSuccess ? "status-success" : "status-error");
+        statusMessage.style.display = "block";
+    }
 
     function renderDashboard() {
         const tbody = document.getElementById('historyTableBody');
@@ -455,18 +479,20 @@
         let totalCrunches = 0;
         let totalPullups = 0;
 
+        if (fitnessData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No entries logged yet. Try saving one above!</td></tr>';
+            return;
+        }
+
         fitnessData.forEach(entry => {
-            // Aggregate metrics
             totalRun += entry.runTime || 0;
             totalBike += entry.bikeTime || 0;
             totalStrength += entry.strengthTime || 0;
             totalCrunches += entry.crunches || 0;
             totalPullups += entry.pullups || 0;
 
-            // Generate clean row layout
             const tr = document.createElement('tr');
             
-            // Format single cell output nicely
             const cardioText = `
                 ${entry.runTime ? `<span class="badge badge-run">Run: ${entry.runTime}m</span><br>` : ''}
                 ${entry.bikeTime ? `<span class="badge badge-bike">Bike: ${entry.bikeTime}m</span>` : ''}
@@ -490,22 +516,12 @@
             tbody.appendChild(tr);
         });
 
-        // Update dashboard widgets
         document.getElementById('stat-run').innerText = `${totalRun} min`;
         document.getElementById('stat-bike').innerText = `${totalBike} min`;
         document.getElementById('stat-strength').innerText = `${totalStrength} min`;
         document.getElementById('stat-reps').innerText = `${totalCrunches} / ${totalPullups}`;
     }
 
-    function clearData() {
-        if(confirm('Are you sure you want to clear your local prototype storage?')) {
-            localStorage.removeItem('fitnessData');
-            fitnessData = [];
-            renderDashboard();
-        }
-    }
-
-    // Initial render call on page load
     renderDashboard();
 </script>
 
