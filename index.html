@@ -230,7 +230,35 @@
             margin-bottom: 12px;
         }
 
-        .bike-bank-button {
+        .bike-bank-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .bike-bank-input-row input {
+            flex: 1;
+        }
+
+        .bike-bank-add-btn {
+            flex: 0 0 auto;
+            background-color: var(--accent-bike);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .bike-bank-add-btn:hover {
+            background-color: #1a7cdb;
+        }
+
+        .bike-bank-empty-btn {
             width: 100%;
             background-color: var(--accent-bike);
             color: white;
@@ -241,14 +269,14 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s;
-            margin-top: 8px;
+            margin-top: 0;
         }
 
-        .bike-bank-button:hover {
+        .bike-bank-empty-btn:hover {
             background-color: #1a7cdb;
         }
 
-        .bike-bank-button:disabled {
+        .bike-bank-empty-btn:disabled {
             background-color: var(--border-color);
             color: var(--text-muted);
             cursor: not-allowed;
@@ -402,6 +430,12 @@
             .week-nav button {
                 width: 100%;
             }
+            .bike-bank-input-row {
+                flex-direction: column;
+            }
+            .bike-bank-add-btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -494,10 +528,13 @@
                 <div class="bike-bank-section">
                     <div class="bike-bank-label">Bike Bank</div>
                     <div class="bike-bank-value" id="bikeBankTotal">0 min</div>
-                    <div class="form-group">
-                        <input type="number" id="bikeBankAmount" min="0" placeholder="Minutes to bank">
+                    
+                    <div class="bike-bank-input-row">
+                        <input type="number" id="bikeBankAmount" min="0" placeholder="Minutes to add">
+                        <button type="button" id="addToBankBtn" class="bike-bank-add-btn">Add</button>
                     </div>
-                    <button type="button" id="emptyBankBtn" class="bike-bank-button">Empty the Bank</button>
+                    
+                    <button type="button" id="emptyBankBtn" class="bike-bank-empty-btn">Empty the Bank</button>
                 </div>
 
                 <div class="form-group">
@@ -565,8 +602,29 @@
     dateInput.valueAsDate = new Date();
 
     // Bike Bank handlers
+    const addToBankBtn = document.getElementById('addToBankBtn');
     const emptyBankBtn = document.getElementById('emptyBankBtn');
     const bikeBankAmountInput = document.getElementById('bikeBankAmount');
+
+    addToBankBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const minutesToAdd = parseInt(bikeBankAmountInput.value) || 0;
+        
+        if (minutesToAdd === 0) {
+            showStatus("Enter minutes to add to the bank.", false);
+            return;
+        }
+
+        const weekKey = getWeekKey(new Date(dateInput.value + 'T00:00:00'));
+        if (!bikeBankData[weekKey]) {
+            bikeBankData[weekKey] = 0;
+        }
+        bikeBankData[weekKey] += minutesToAdd;
+        saveBikeBankData();
+        bikeBankAmountInput.value = '';
+        updateBikeBankDisplay();
+        showStatus(`Added ${minutesToAdd} minute(s) to bike bank.`, true);
+    });
 
     emptyBankBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -586,7 +644,7 @@
         bikeBankData[weekKey] = 0;
         saveBikeBankData();
         updateBikeBankDisplay();
-        showStatus(`Added ${bankedMinutes} minutes to today's bike time.`, true);
+        showStatus(`Added ${bankedMinutes} minute(s) to today's bike time.`, true);
     });
 
     dateInput.addEventListener('change', () => {
@@ -709,17 +767,6 @@
         entry.weight = document.getElementById('weight').value || entry.weight || '';
         entry.alcohol = document.getElementById('alcohol').value || entry.alcohol || '';
         entry.notes = document.getElementById('notes').value || entry.notes || '';
-
-        // Handle bike bank deposit
-        const bikeBankMinutes = parseInt(document.getElementById('bikeBankAmount').value) || 0;
-        if (bikeBankMinutes > 0) {
-            const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
-            if (!bikeBankData[weekKey]) {
-                bikeBankData[weekKey] = 0;
-            }
-            bikeBankData[weekKey] += bikeBankMinutes;
-            saveBikeBankData();
-        }
 
         fetch(CLOUD_URL, {
             method: 'POST',
