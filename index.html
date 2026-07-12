@@ -893,7 +893,13 @@
         const prevBtn = document.getElementById('runTrackerPrevBtn');
         const nextBtn = document.getElementById('runTrackerNextBtn');
 
-        if (!runTrackerData.length) {
+        const validRows = runTrackerData.filter(row => {
+            const hasDistance = row.distance !== null && row.distance !== undefined && String(row.distance).trim() !== '';
+            const hasTime = row.time !== null && row.time !== undefined && String(row.time).trim() !== '';
+            return hasDistance && hasTime;
+        });
+
+        if (!validRows.length) {
             body.innerHTML = '<tr><td colspan="3" style="text-align:center;">No run tracker history found.</td></tr>';
             pageInfo.innerText = 'Page 1 of 1';
             prevBtn.disabled = true;
@@ -901,13 +907,13 @@
             return;
         }
 
-        const totalPages = Math.max(1, Math.ceil(runTrackerData.length / RUN_TRACKER_ROWS_PER_PAGE));
+        const totalPages = Math.max(1, Math.ceil(validRows.length / RUN_TRACKER_ROWS_PER_PAGE));
         if (runTrackerPage > totalPages) {
             runTrackerPage = totalPages;
         }
 
         const startIndex = (runTrackerPage - 1) * RUN_TRACKER_ROWS_PER_PAGE;
-        const pageRows = runTrackerData.slice(startIndex, startIndex + RUN_TRACKER_ROWS_PER_PAGE);
+        const pageRows = validRows.slice(startIndex, startIndex + RUN_TRACKER_ROWS_PER_PAGE);
 
         body.innerHTML = pageRows.map(row => {
             const displayDate = row.date || '-';
