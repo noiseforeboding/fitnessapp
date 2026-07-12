@@ -674,7 +674,7 @@
 
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
-    const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbznqA-qoLhLjLAKBohenYWDRjgzi-Mbob7gJceP58E5lyO3PvLTG-82NF4u-DiWIh_i/exec?sheet=RunTracker";
+    const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbw2_fzG2F5N_SqvNKwtXthl7owx75rd6ZIBwfgRKSrQcdS5KmH0isgq1A0H1N-YUP8J/exec?sheet=RunTracker";
     const RUN_TRACKER_ROWS_PER_PAGE = 30;
     
     let fitnessData = [];
@@ -695,7 +695,6 @@
     const dateInput = document.getElementById('date');
     dateInput.valueAsDate = new Date();
 
-    // Bike Bank handlers
     const addToBankBtn = document.getElementById('addToBankBtn');
     const emptyBankBtn = document.getElementById('emptyBankBtn');
     const bikeBankAmountInput = document.getElementById('bikeBankAmount');
@@ -764,7 +763,6 @@
         updateBikeBankDisplay();
     });
 
-    // Week navigation
     document.getElementById('prevWeekBtn').addEventListener('click', () => {
         viewDate.setDate(viewDate.getDate() - 7);
         renderDashboard();
@@ -838,35 +836,10 @@
     function normalizeRunTrackerRow(row) {
         const rawDate = getRunTrackerValue(row, ['date', 'Date']);
         const rawDistance = getRunTrackerValue(row, [
-            'distance',
-            'Distance',
-            'distanceKm',
-            'DistanceKm',
-            'distance_km',
-            'Distance_Km',
-            'distance(km)',
-            'Distance (km)',
-            'Distance(km)',
-            'Distance KM',
-            'km',
-            'KM'
+            'distance', 'Distance', 'distanceKm', 'DistanceKm', 'distance_km', 'Distance_Km', 'distance(km)', 'Distance (km)', 'Distance(km)', 'Distance KM', 'km', 'KM'
         ]);
         const rawTime = getRunTrackerValue(row, [
-            'time',
-            'Time',
-            'minutes',
-            'Minutes',
-            'minute',
-            'Minute',
-            'timeMinutes',
-            'TimeMinutes',
-            'time_minutes',
-            'Time_Minutes',
-            'time(minutes)',
-            'Time (Minutes)',
-            'Time(minutes)',
-            'duration',
-            'Duration'
+            'time', 'Time', 'minutes', 'Minutes', 'minute', 'Minute', 'timeMinutes', 'TimeMinutes', 'time_minutes', 'Time_Minutes', 'time(minutes)', 'Time (Minutes)', 'Time(minutes)', 'duration', 'Duration'
         ]);
 
         const formattedDate = formatRunTrackerDate(rawDate);
@@ -953,13 +926,10 @@
         nextBtn.disabled = runTrackerPage >= totalPages;
     }
 
-    // Dynamic Run Tracker Fetch Engine tailored to specific properties
     function fetchRunTrackerData() {
         fetch(RUN_TRACKER_URL)
         .then(response => response.json())
         .then(data => {
-            const body = document.getElementById('runTrackerBody');
-            
             if (!Array.isArray(data) || data.length === 0) {
                 runTrackerData = [];
                 runTrackerPage = 1;
@@ -1013,7 +983,6 @@
         emptyBankBtn.disabled = balance <= 0;
     }
 
-    // Returns array of ISO date strings [Mon, Tue, ..., Sun] based on target date
     function getWeekDays(dateString) {
         const target = new Date(dateString + 'T00:00:00');
         const dayOfWeek = target.getDay(); 
@@ -1044,7 +1013,6 @@
         const crunchesToAdd = parseInt(document.getElementById('crunches').value) || 0;
         const pullupsToAdd = parseInt(document.getElementById('pullups').value) || 0;
 
-        // Find existing entry or create new one
         let entry = fitnessData.find(e => e.date === selectedDate);
         if (!entry) {
             entry = {
@@ -1060,7 +1028,6 @@
             };
         }
 
-        // Add to existing values (don't replace)
         entry.runTime = (entry.runTime || 0) + runTimeToAdd;
         entry.bikeTime = (entry.bikeTime || 0) + bikeTimeToAdd;
         entry.strengthTime = (entry.strengthTime || 0) + strengthTimeToAdd;
@@ -1108,18 +1075,15 @@
         const input = cell.querySelector('input');
         const newValue = parseInt(input.value) || 0;
 
-        // Update fitnessData based on the edited cell
         const weekDays = getWeekDays(viewDate.toISOString().split('T')[0]);
         const dateToUpdate = weekDays[dayIndex];
 
-        // Find or create entry for this date
         let entry = fitnessData.find(e => e.date === dateToUpdate);
         if (!entry) {
             entry = { date: dateToUpdate, runTime: 0, bikeTime: 0, strengthTime: 0, crunches: 0, pullups: 0, deficit: 0 };
             fitnessData.push(entry);
         }
 
-        // Map rowKey to the entry property
         const keyMap = {
             'runTime': 'runTime',
             'bikeTime': 'bikeTime',
@@ -1133,7 +1097,6 @@
             entry[keyMap[rowKey]] = newValue;
         }
 
-        // Send update to cloud
         fetch(CLOUD_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -1157,23 +1120,18 @@
         tbody.innerHTML = '';
 
         const weekDays = getWeekDays(viewDate.toISOString().split('T')[0]);
-        
-        // Update header sub-labels to show day numbers
         const dayLabels = ['mon','tue','wed','thu','fri','sat','sun'];
         dayLabels.forEach((label, index) => {
             const cleanDayNum = weekDays[index].split('-')[2];
             document.getElementById(`th-${label}`).innerHTML = `${label.toUpperCase()}<br><span style="font-size:10px; font-weight:normal; color:var(--text-muted);">${cleanDayNum}</span>`;
         });
 
-        // Set dynamic timeframe header title 
         document.getElementById('weekViewTitle').innerText = `Week View`;
         document.getElementById('weekDateRange').innerText = `${weekDays[0]} to ${weekDays[6]}`;
 
-        // Matrix map to keep tracking keys paired with day data
         let daily = { run: 0, bike: 0, strength: 0, crunches: 0, pullups: 0 };
         let weekly = { run: 0, bike: 0, strength: 0, crunches: 0, pullups: 0 };
         
-        // Structures for mapping values dynamically across the columns
         const rowStructure = {
             runTime: { label: 'Run Time (m)', days: [0,0,0,0,0,0,0] },
             bikeTime: { label: 'Bike Time (m)', days: [0,0,0,0,0,0,0] },
@@ -1186,7 +1144,6 @@
         const today = new Date().toISOString().split('T')[0];
 
         fitnessData.forEach(entry => {
-            // Log target day calculations
             if (entry.date === today) {
                 daily.run += entry.runTime || 0;
                 daily.bike += entry.bikeTime || 0;
@@ -1195,7 +1152,6 @@
                 daily.pullups += entry.pullups || 0;
             }
             
-            // Map data items into the weekly day-of-week slots
             const dayIndex = weekDays.indexOf(entry.date);
             if (dayIndex !== -1) {
                 rowStructure.runTime.days[dayIndex] += entry.runTime || 0;
@@ -1205,7 +1161,6 @@
                 rowStructure.pullups.days[dayIndex] += entry.pullups || 0;
                 rowStructure.deficit.days[dayIndex] += entry.deficit || 0;
 
-                // Also calculate header totals
                 weekly.run += entry.runTime || 0;
                 weekly.bike += entry.bikeTime || 0;
                 weekly.strength += entry.strengthTime || 0;
@@ -1214,7 +1169,6 @@
             }
         });
 
-        // Loop over structure object keys and construct HTML rows
         Object.keys(rowStructure).forEach(key => {
             const tr = document.createElement('tr');
             let cellsHTML = `<td class="row-label">${rowStructure[key].label}</td>`;
@@ -1227,7 +1181,6 @@
                 cellsHTML += `<td class="editable ${cssClass}" data-row="${key}" data-day="${dayIndex}">${displayVal}</td>`;
             });
 
-            // Add total cell
             const totalDisplay = rowTotal === 0 ? '-' : rowTotal.toLocaleString();
             cellsHTML += `<td class="total-cell">${totalDisplay}</td>`;
             
@@ -1235,7 +1188,6 @@
             tbody.appendChild(tr);
         });
 
-        // Add click handlers to editable cells
         document.querySelectorAll('td.editable').forEach(cell => {
             cell.addEventListener('click', function() {
                 if (currentEditCell && currentEditCell !== this) {
