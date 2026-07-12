@@ -616,7 +616,7 @@
 
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
-    const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbwLmixWTI-fytrAMswkLPPKXTTJZ3T2xDs8UaxJuX9srCmaab2S-4k5sDCbxQDvd4Ux/exec";
+    const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbznqA-qoLhLjLAKBohenYWDRjgzi-Mbob7gJceP58E5lyO3PvLTG-82NF4u-DiWIh_i/exec?sheet=Run%20Tracker";
     
     let fitnessData = [];
     let viewDate = new Date();
@@ -788,14 +788,15 @@
                 const timeVal = getRunTrackerValue(row, [
                     'time',
                     'Time',
+                    'minutes',
+                    'Minutes',
                     'timeMinutes',
                     'TimeMinutes',
                     'time_minutes',
                     'Time_Minutes',
                     'time(minutes)',
                     'Time (Minutes)',
-                    'Time(minutes)',
-                    'Minutes'
+                    'Time(minutes)'
                 ]);
 
                 const displayDate = dateVal || '-';
