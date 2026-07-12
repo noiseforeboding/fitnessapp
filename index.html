@@ -588,18 +588,20 @@
         </div>
     </div>
 
-    <!-- New Run Tracker Section -->
+    <!-- Run Tracker Log Section -->
     <div class="run-tracker-section">
         <h2 style="color: var(--accent-run);">Run Tracker Logs</h2>
         <div class="table-container">
             <table id="runTrackerTable">
                 <thead>
-                    <tr id="runTrackerHead">
-                        <th style="text-align: left;">Loading Run logs...</th>
+                    <tr>
+                        <th style="text-align: left;">Date</th>
+                        <th style="text-align: left;">Distance (km)</th>
+                        <th style="text-align: left;">Time (Minutes)</th>
                     </tr>
                 </thead>
                 <tbody id="runTrackerBody">
-                    <tr><td style="text-align:center;">Connecting to Run Tracker log data...</td></tr>
+                    <tr><td colspan="3" style="text-align:center;">Connecting to Run Tracker log data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -712,35 +714,36 @@
         });
     }
 
-    // Dynamic Run Tracker Fetch Engine
+    // Dynamic Run Tracker Fetch Engine tailored to specific properties
     function fetchRunTrackerData() {
         fetch(RUN_TRACKER_URL)
         .then(response => response.json())
         .then(data => {
-            const head = document.getElementById('runTrackerHead');
             const body = document.getElementById('runTrackerBody');
             
             if (!Array.isArray(data) || data.length === 0) {
-                head.innerHTML = '<th style="text-align: left;">Status</th>';
-                body.innerHTML = '<tr><td>No run tracker history found or data mapping mismatch.</td></tr>';
+                body.innerHTML = '<tr><td colspan="3" style="text-align:center;">No run tracker history found.</td></tr>';
                 return;
             }
 
-            // Extract headers from keys of the first item
-            const keys = Object.keys(data[0]);
-            head.innerHTML = keys.map(key => `<th style="text-align: left; text-transform: capitalize;">${key.replace(/([A-Z])/g, ' $1')}</th>`).join('');
-            
-            // Generate rows
+            // Map data items by explicitly expecting 'date', 'distance', and 'time' 
+            // Handles both standard object keys and variation casings (e.g., distanceKm, timeMinutes)
             body.innerHTML = data.map(row => {
-                return `<tr>${keys.map(key => {
-                    const cellVal = row[key] !== null && row[key] !== undefined ? row[key] : '-';
-                    return `<td style="text-align: left;" class="${cellVal !== '-' ? 'has-value' : ''}">${cellVal}</td>`;
-                }).join('')}</tr>`;
+                // Key safety normalization fallback checks
+                const dateVal = row.date || row.Date || '-';
+                const distVal = row.distance || row.distanceKm || row['distance(km)'] || row['Distance (km)'] || '-';
+                const timeVal = row.time || row.timeMinutes || row['time(minutes)'] || row['Time (Minutes)'] || '-';
+
+                return `<tr>
+                    <td style="text-align: left;" class="${dateVal !== '-' ? 'has-value' : ''}">${dateVal}</td>
+                    <td style="text-align: left;" class="${distVal !== '-' ? 'has-value' : ''}">${distVal}</td>
+                    <td style="text-align: left;" class="${timeVal !== '-' ? 'has-value' : ''}">${timeVal}</td>
+                </tr>`;
             }).join('');
         })
         .catch(error => {
             console.error('Error fetching run tracker data:', error);
-            document.getElementById('runTrackerBody').innerHTML = '<tr><td style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
+            document.getElementById('runTrackerBody').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
         });
     }
 
