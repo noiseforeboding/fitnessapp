@@ -116,6 +116,7 @@
             display: flex;
             gap: 24px;
             flex-wrap: wrap;
+            margin-bottom: 24px;
         }
 
         .form-section {
@@ -128,13 +129,18 @@
             align-self: flex-start;
         }
 
-        .history-section {
+        .history-section, .run-tracker-section {
             flex: 2;
             min-width: 450px;
             background-color: var(--bg-secondary);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 24px;
+        }
+
+        .run-tracker-section {
+            width: 100%;
+            margin-top: 24px;
         }
 
         h2 {
@@ -421,7 +427,7 @@
             .workspace {
                 flex-direction: column;
             }
-            .form-section, .history-section {
+            .form-section, .history-section, .run-tracker-section {
                 width: 100%;
             }
             .week-nav {
@@ -581,10 +587,29 @@
             </div>
         </div>
     </div>
+
+    <!-- New Run Tracker Section -->
+    <div class="run-tracker-section">
+        <h2 style="color: var(--accent-run);">Run Tracker Logs</h2>
+        <div class="table-container">
+            <table id="runTrackerTable">
+                <thead>
+                    <tr id="runTrackerHead">
+                        <th style="text-align: left;">Loading Run logs...</th>
+                    </tr>
+                </thead>
+                <tbody id="runTrackerBody">
+                    <tr><td style="text-align:center;">Connecting to Run Tracker log data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
+    const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbwLmixWTI-fytrAMswkLPPKXTTJZ3T2xDs8UaxJuX9srCmaab2S-4k5sDCbxQDvd4Ux/exec";
+    
     let fitnessData = [];
     let viewDate = new Date();
     let bikeBankData = {};
@@ -687,6 +712,38 @@
         });
     }
 
+    // Dynamic Run Tracker Fetch Engine
+    function fetchRunTrackerData() {
+        fetch(RUN_TRACKER_URL)
+        .then(response => response.json())
+        .then(data => {
+            const head = document.getElementById('runTrackerHead');
+            const body = document.getElementById('runTrackerBody');
+            
+            if (!Array.isArray(data) || data.length === 0) {
+                head.innerHTML = '<th style="text-align: left;">Status</th>';
+                body.innerHTML = '<tr><td>No run tracker history found or data mapping mismatch.</td></tr>';
+                return;
+            }
+
+            // Extract headers from keys of the first item
+            const keys = Object.keys(data[0]);
+            head.innerHTML = keys.map(key => `<th style="text-align: left; text-transform: capitalize;">${key.replace(/([A-Z])/g, ' $1')}</th>`).join('');
+            
+            // Generate rows
+            body.innerHTML = data.map(row => {
+                return `<tr>${keys.map(key => {
+                    const cellVal = row[key] !== null && row[key] !== undefined ? row[key] : '-';
+                    return `<td style="text-align: left;" class="${cellVal !== '-' ? 'has-value' : ''}">${cellVal}</td>`;
+                }).join('')}</tr>`;
+            }).join('');
+        })
+        .catch(error => {
+            console.error('Error fetching run tracker data:', error);
+            document.getElementById('runTrackerBody').innerHTML = '<tr><td style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
+        });
+    }
+
     function loadBikeBankData() {
         const stored = localStorage.getItem('bikeBankData');
         bikeBankData = stored ? JSON.parse(stored) : {};
@@ -780,7 +837,10 @@
             bikeBankAmountInput.value = '';
             dateInput.valueAsDate = new Date();
             viewDate = new Date();
-            setTimeout(fetchCloudHistory, 1500);
+            setTimeout(() => {
+                fetchCloudHistory();
+                fetchRunTrackerData();
+            }, 1500);
         })
         .catch(error => {
             console.error('Error:', error);
@@ -991,7 +1051,9 @@
         submitBtn.innerText = "Save Entry to Cloud";
     }
 
+    // Initialize data engines
     fetchCloudHistory();
+    fetchRunTrackerData();
 </script>
 
 </body>
