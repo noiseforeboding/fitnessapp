@@ -143,10 +143,54 @@
             margin-top: 24px;
         }
 
+        .run-tracker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .run-tracker-pagination {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .run-tracker-pagination button {
+            width: auto;
+            margin-top: 0;
+            padding: 8px 14px;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .run-tracker-pagination button:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .run-tracker-page-info {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
         h2 {
             font-size: 18px;
             margin-bottom: 20px;
             font-weight: 600;
+        }
+
+        .run-tracker-header h2 {
+            margin-bottom: 0;
         }
 
         .form-group {
@@ -453,6 +497,13 @@
             .bike-bank-add-btn {
                 width: 100%;
             }
+            .run-tracker-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .run-tracker-pagination {
+                justify-content: space-between;
+            }
         }
     </style>
 </head>
@@ -596,7 +647,14 @@
 
     <!-- Run Tracker Log Section -->
     <div class="run-tracker-section">
-        <h2 style="color: var(--accent-run);">Run Tracker Logs</h2>
+        <div class="run-tracker-header">
+            <h2 style="color: var(--accent-run);">Run Tracker Logs</h2>
+            <div class="run-tracker-pagination">
+                <button id="runTrackerPrevBtn" type="button">← Previous</button>
+                <div class="run-tracker-page-info" id="runTrackerPageInfo">Page 1</div>
+                <button id="runTrackerNextBtn" type="button">Next →</button>
+            </div>
+        </div>
         <div class="table-container">
             <table id="runTrackerTable">
                 <thead>
@@ -617,11 +675,14 @@
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
     const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbznqA-qoLhLjLAKBohenYWDRjgzi-Mbob7gJceP58E5lyO3PvLTG-82NF4u-DiWIh_i/exec?sheet=RunTracker";
+    const RUN_TRACKER_ROWS_PER_PAGE = 30;
     
     let fitnessData = [];
     let viewDate = new Date();
     let bikeBankData = {};
     let currentEditCell = null;
+    let runTrackerData = [];
+    let runTrackerPage = 1;
 
     const WEEKLY_GOALS = {
         run: 180,
@@ -714,6 +775,21 @@
         renderDashboard();
     });
 
+    document.getElementById('runTrackerPrevBtn').addEventListener('click', () => {
+        if (runTrackerPage > 1) {
+            runTrackerPage -= 1;
+            renderRunTrackerTable();
+        }
+    });
+
+    document.getElementById('runTrackerNextBtn').addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(runTrackerData.length / RUN_TRACKER_ROWS_PER_PAGE));
+        if (runTrackerPage < totalPages) {
+            runTrackerPage += 1;
+            renderRunTrackerTable();
+        }
+    });
+
     const form = document.getElementById('activityForm');
     const submitBtn = document.getElementById('submitBtn');
     const statusMessage = document.getElementById('statusMessage');
@@ -759,6 +835,124 @@
         return '';
     }
 
+    function normalizeRunTrackerRow(row) {
+        const rawDate = getRunTrackerValue(row, ['date', 'Date']);
+        const rawDistance = getRunTrackerValue(row, [
+            'distance',
+            'Distance',
+            'distanceKm',
+            'DistanceKm',
+            'distance_km',
+            'Distance_Km',
+            'distance(km)',
+            'Distance (km)',
+            'Distance(km)',
+            'Distance KM',
+            'km',
+            'KM'
+        ]);
+        const rawTime = getRunTrackerValue(row, [
+            'time',
+            'Time',
+            'minutes',
+            'Minutes',
+            'minute',
+            'Minute',
+            'timeMinutes',
+            'TimeMinutes',
+            'time_minutes',
+            'Time_Minutes',
+            'time(minutes)',
+            'Time (Minutes)',
+            'Time(minutes)',
+            'duration',
+            'Duration'
+        ]);
+
+        const formattedDate = formatRunTrackerDate(rawDate);
+
+        return {
+            date: formattedDate,
+            rawDate: rawDate,
+            distance: rawDistance,
+            time: rawTime
+        };
+    }
+
+    function formatRunTrackerDate(value) {
+        if (!value) return '-';
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (isoMatch) {
+                return isoMatch[1];
+            }
+        }
+
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+            const year = parsed.getUTCFullYear();
+            const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getUTCDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        return String(value);
+    }
+
+    function getRunTrackerSortValue(row) {
+        if (row.date && /^\d{4}-\d{2}-\d{2}$/.test(row.date)) {
+            return row.date;
+        }
+
+        const parsed = new Date(row.rawDate || row.date);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString().slice(0, 10);
+        }
+
+        return '';
+    }
+
+    function renderRunTrackerTable() {
+        const body = document.getElementById('runTrackerBody');
+        const pageInfo = document.getElementById('runTrackerPageInfo');
+        const prevBtn = document.getElementById('runTrackerPrevBtn');
+        const nextBtn = document.getElementById('runTrackerNextBtn');
+
+        if (!runTrackerData.length) {
+            body.innerHTML = '<tr><td colspan="3" style="text-align:center;">No run tracker history found.</td></tr>';
+            pageInfo.innerText = 'Page 1 of 1';
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+
+        const totalPages = Math.max(1, Math.ceil(runTrackerData.length / RUN_TRACKER_ROWS_PER_PAGE));
+        if (runTrackerPage > totalPages) {
+            runTrackerPage = totalPages;
+        }
+
+        const startIndex = (runTrackerPage - 1) * RUN_TRACKER_ROWS_PER_PAGE;
+        const pageRows = runTrackerData.slice(startIndex, startIndex + RUN_TRACKER_ROWS_PER_PAGE);
+
+        body.innerHTML = pageRows.map(row => {
+            const displayDate = row.date || '-';
+            const displayDistance = row.distance || '-';
+            const displayTime = row.time || '-';
+
+            return `<tr>
+                <td style="text-align: left;" class="${displayDate !== '-' ? 'has-value' : ''}">${displayDate}</td>
+                <td style="text-align: left;" class="${displayDistance !== '-' ? 'has-value' : ''}">${displayDistance}</td>
+                <td style="text-align: left;" class="${displayTime !== '-' ? 'has-value' : ''}">${displayTime}</td>
+            </tr>`;
+        }).join('');
+
+        pageInfo.innerText = `Page ${runTrackerPage} of ${totalPages}`;
+        prevBtn.disabled = runTrackerPage <= 1;
+        nextBtn.disabled = runTrackerPage >= totalPages;
+    }
+
     // Dynamic Run Tracker Fetch Engine tailored to specific properties
     function fetchRunTrackerData() {
         fetch(RUN_TRACKER_URL)
@@ -767,52 +961,25 @@
             const body = document.getElementById('runTrackerBody');
             
             if (!Array.isArray(data) || data.length === 0) {
-                body.innerHTML = '<tr><td colspan="3" style="text-align:center;">No run tracker history found.</td></tr>';
+                runTrackerData = [];
+                runTrackerPage = 1;
+                renderRunTrackerTable();
                 return;
             }
 
-            body.innerHTML = data.map(row => {
-                const dateVal = getRunTrackerValue(row, ['date', 'Date']);
-                const distVal = getRunTrackerValue(row, [
-                    'distance',
-                    'Distance',
-                    'distanceKm',
-                    'DistanceKm',
-                    'distance_km',
-                    'Distance_Km',
-                    'distance(km)',
-                    'Distance (km)',
-                    'Distance(km)',
-                    'Distance KM'
-                ]);
-                const timeVal = getRunTrackerValue(row, [
-                    'time',
-                    'Time',
-                    'minutes',
-                    'Minutes',
-                    'timeMinutes',
-                    'TimeMinutes',
-                    'time_minutes',
-                    'Time_Minutes',
-                    'time(minutes)',
-                    'Time (Minutes)',
-                    'Time(minutes)'
-                ]);
+            runTrackerData = data
+                .map(normalizeRunTrackerRow)
+                .sort((a, b) => getRunTrackerSortValue(b).localeCompare(getRunTrackerSortValue(a)));
 
-                const displayDate = dateVal || '-';
-                const displayDistance = distVal || '-';
-                const displayTime = timeVal || '-';
-
-                return `<tr>
-                    <td style="text-align: left;" class="${displayDate !== '-' ? 'has-value' : ''}">${displayDate}</td>
-                    <td style="text-align: left;" class="${displayDistance !== '-' ? 'has-value' : ''}">${displayDistance}</td>
-                    <td style="text-align: left;" class="${displayTime !== '-' ? 'has-value' : ''}">${displayTime}</td>
-                </tr>`;
-            }).join('');
+            runTrackerPage = 1;
+            renderRunTrackerTable();
         })
         .catch(error => {
             console.error('Error fetching run tracker data:', error);
             document.getElementById('runTrackerBody').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
+            document.getElementById('runTrackerPageInfo').innerText = 'Page 1 of 1';
+            document.getElementById('runTrackerPrevBtn').disabled = true;
+            document.getElementById('runTrackerNextBtn').disabled = true;
         });
     }
 
