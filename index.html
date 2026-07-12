@@ -729,6 +729,30 @@
         });
     }
 
+    function getRunTrackerValue(row, candidateKeys) {
+        for (const key of candidateKeys) {
+            const value = row[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                return value;
+            }
+        }
+
+        const normalizedEntries = Object.entries(row).map(([key, value]) => [
+            String(key).toLowerCase().replace(/[^a-z0-9]/g, ''),
+            value
+        ]);
+
+        for (const key of candidateKeys) {
+            const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const match = normalizedEntries.find(([entryKey, value]) => entryKey === normalizedKey && value !== undefined && value !== null && String(value).trim() !== '');
+            if (match) {
+                return match[1];
+            }
+        }
+
+        return '';
+    }
+
     // Dynamic Run Tracker Fetch Engine tailored to specific properties
     function fetchRunTrackerData() {
         fetch(RUN_TRACKER_URL)
@@ -741,18 +765,41 @@
                 return;
             }
 
-            // Map data items by explicitly expecting 'date', 'distance', and 'time' 
-            // Handles both standard object keys and variation casings (e.g., distanceKm, timeMinutes)
             body.innerHTML = data.map(row => {
-                // Key safety normalization fallback checks
-                const dateVal = row.date || row.Date || '-';
-                const distVal = row.distance || row.distanceKm || row['distance(km)'] || row['Distance (km)'] || '-';
-                const timeVal = row.time || row.timeMinutes || row['time(minutes)'] || row['Time (Minutes)'] || '-';
+                const dateVal = getRunTrackerValue(row, ['date', 'Date']);
+                const distVal = getRunTrackerValue(row, [
+                    'distance',
+                    'Distance',
+                    'distanceKm',
+                    'DistanceKm',
+                    'distance_km',
+                    'Distance_Km',
+                    'distance(km)',
+                    'Distance (km)',
+                    'Distance(km)',
+                    'Distance KM'
+                ]);
+                const timeVal = getRunTrackerValue(row, [
+                    'time',
+                    'Time',
+                    'timeMinutes',
+                    'TimeMinutes',
+                    'time_minutes',
+                    'Time_Minutes',
+                    'time(minutes)',
+                    'Time (Minutes)',
+                    'Time(minutes)',
+                    'Minutes'
+                ]);
+
+                const displayDate = dateVal || '-';
+                const displayDistance = distVal || '-';
+                const displayTime = timeVal || '-';
 
                 return `<tr>
-                    <td style="text-align: left;" class="${dateVal !== '-' ? 'has-value' : ''}">${dateVal}</td>
-                    <td style="text-align: left;" class="${distVal !== '-' ? 'has-value' : ''}">${distVal}</td>
-                    <td style="text-align: left;" class="${timeVal !== '-' ? 'has-value' : ''}">${timeVal}</td>
+                    <td style="text-align: left;" class="${displayDate !== '-' ? 'has-value' : ''}">${displayDate}</td>
+                    <td style="text-align: left;" class="${displayDistance !== '-' ? 'has-value' : ''}">${displayDistance}</td>
+                    <td style="text-align: left;" class="${displayTime !== '-' ? 'has-value' : ''}">${displayTime}</td>
                 </tr>`;
             }).join('');
         })
