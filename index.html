@@ -173,6 +173,8 @@
 
         input, textarea, select {
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -189,6 +191,7 @@
 
         form button {
             width: 100%;
+            max-width: 100%;
             background-color: #4f46e5;
             color: white;
             border: none;
@@ -218,6 +221,7 @@
             padding: 16px;
             margin-bottom: 20px;
             margin-top: 20px;
+            overflow: hidden;
         }
 
         .bike-bank-label {
@@ -237,17 +241,23 @@
         }
 
         .bike-bank-input-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             gap: 8px;
             margin-bottom: 10px;
+            width: 100%;
+            align-items: stretch;
         }
 
         .bike-bank-input-row input {
-            flex: 1;
+            width: 100%;
+            min-width: 0;
         }
 
         .bike-bank-add-btn {
-            flex: 0 0 auto;
+            width: auto;
+            min-width: 88px;
+            max-width: 100%;
             background-color: var(--accent-bike);
             color: white;
             border: none;
@@ -258,6 +268,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
             white-space: nowrap;
+            margin-top: 0;
         }
 
         .bike-bank-add-btn:hover {
@@ -437,7 +448,7 @@
                 width: 100%;
             }
             .bike-bank-input-row {
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
             .bike-bank-add-btn {
                 width: 100%;
@@ -541,11 +552,6 @@
                     </div>
                     
                     <button type="button" id="emptyBankBtn" class="bike-bank-empty-btn">Empty the Bank</button>
-                </div>
-
-                <div class="form-group">
-                    <label for="notes">Daily Highlights / Notes</label>
-                    <textarea id="notes" rows="3" placeholder="Good things, family updates, sleep, etc..."></textarea>
                 </div>
 
                 <button type="submit" id="submitBtn">Save Entry to Cloud</button>
@@ -829,6 +835,7 @@
         const selectedDate = dateInput.value;
         if (!selectedDate) {
             document.getElementById('bikeBankTotal').innerText = '0 min';
+            emptyBankBtn.disabled = true;
             return;
         }
 
@@ -881,8 +888,7 @@
                 crunches: 0,
                 pullups: 0,
                 weight: '',
-                alcohol: '',
-                notes: ''
+                alcohol: ''
             };
         }
 
@@ -895,7 +901,6 @@
         entry.pullups = (entry.pullups || 0) + pullupsToAdd;
         entry.weight = document.getElementById('weight').value || entry.weight || '';
         entry.alcohol = document.getElementById('alcohol').value || entry.alcohol || '';
-        entry.notes = document.getElementById('notes').value || entry.notes || '';
 
         fetch(CLOUD_URL, {
             method: 'POST',
