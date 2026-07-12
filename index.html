@@ -632,17 +632,26 @@
     const addToBankBtn = document.getElementById('addToBankBtn');
     const emptyBankBtn = document.getElementById('emptyBankBtn');
     const bikeBankAmountInput = document.getElementById('bikeBankAmount');
+    const bikeTimeInput = document.getElementById('bikeTime');
 
     addToBankBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const minutesToAdd = parseInt(bikeBankAmountInput.value) || 0;
+        const minutesToAdd = parseInt(bikeBankAmountInput.value, 10);
         
-        if (minutesToAdd === 0) {
-            showStatus("Enter minutes to add to the bank.", false);
+        if (!Number.isInteger(minutesToAdd) || minutesToAdd <= 0) {
+            showStatus("Enter a positive number of minutes to add to the bank.", false);
+            bikeBankAmountInput.focus();
             return;
         }
 
-        const weekKey = getWeekKey(new Date(dateInput.value + 'T00:00:00'));
+        const selectedDate = dateInput.value;
+        if (!selectedDate) {
+            showStatus("Choose a date before using the bike bank.", false);
+            dateInput.focus();
+            return;
+        }
+
+        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
         if (!bikeBankData[weekKey]) {
             bikeBankData[weekKey] = 0;
         }
@@ -655,19 +664,25 @@
 
     emptyBankBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const weekKey = getWeekKey(new Date(dateInput.value + 'T00:00:00'));
+
+        const selectedDate = dateInput.value;
+        if (!selectedDate) {
+            showStatus("Choose a date before emptying the bike bank.", false);
+            dateInput.focus();
+            return;
+        }
+
+        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
         const bankedMinutes = bikeBankData[weekKey] || 0;
         
-        if (bankedMinutes === 0) {
+        if (bankedMinutes <= 0) {
             showStatus("No minutes in bike bank to empty.", false);
             return;
         }
 
-        // Add banked minutes to bike time
-        const currentBikeTime = parseInt(document.getElementById('bikeTime').value) || 0;
-        document.getElementById('bikeTime').value = currentBikeTime + bankedMinutes;
+        const currentBikeTime = parseInt(bikeTimeInput.value, 10) || 0;
+        bikeTimeInput.value = currentBikeTime + bankedMinutes;
         
-        // Clear the bike bank
         bikeBankData[weekKey] = 0;
         saveBikeBankData();
         updateBikeBankDisplay();
@@ -675,8 +690,8 @@
     });
 
     dateInput.addEventListener('change', () => {
-        if(fitnessData.length > 0) {
-            viewDate = new Date(dateInput.value + 'T00:00:00');
+        viewDate = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : new Date();
+        if (fitnessData.length > 0) {
             renderDashboard();
         }
         updateBikeBankDisplay();
@@ -764,9 +779,16 @@
     }
 
     function updateBikeBankDisplay() {
-        const weekKey = getWeekKey(new Date(dateInput.value + 'T00:00:00'));
+        const selectedDate = dateInput.value;
+        if (!selectedDate) {
+            document.getElementById('bikeBankTotal').innerText = '0 min';
+            return;
+        }
+
+        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
         const balance = bikeBankData[weekKey] || 0;
         document.getElementById('bikeBankTotal').innerText = `${balance} min`;
+        emptyBankBtn.disabled = balance <= 0;
     }
 
     // Returns array of ISO date strings [Mon, Tue, ..., Sun] based on target date
@@ -840,6 +862,7 @@
             bikeBankAmountInput.value = '';
             dateInput.valueAsDate = new Date();
             viewDate = new Date();
+            updateBikeBankDisplay();
             setTimeout(() => {
                 fetchCloudHistory();
                 fetchRunTrackerData();
@@ -999,64 +1022,50 @@
                     currentEditCell.classList.remove('editing');
                 }
 
-                const rowKey = this.getAttribute('data-row');
-                const dayIndex = parseInt(this.getAttribute('data-day'));
-                const weekDays = getWeekDays(viewDate.toISOString().split('T')[0]);
-                const currentVal = this.innerText === '-' ? '' : this.innerText;
+                if (this.classList.contains('editing')) return;
+
+                currentEditCell = this;
+                const rowKey = this.dataset.row;
+                const dayIndex = parseInt(this.dataset.day);
+                const currentValue = this.textContent === '-' ? 0 : parseInt(this.textContent.replace(/,/g, '')) || 0;
 
                 this.classList.add('editing');
-                this.innerHTML = `<input type="number" min="0" value="${currentVal}" autofocus>`;
-                currentEditCell = this;
-
+                this.innerHTML = `<input type="number" min="0" value="${currentValue}">`;
                 const input = this.querySelector('input');
                 input.focus();
                 input.select();
 
-                const finishEdit = () => {
-                    if (currentEditCell === this) {
-                        saveEditedCell(this, rowKey, dayIndex);
-                    }
-                };
-
-                input.addEventListener('blur', finishEdit);
+                input.addEventListener('blur', () => saveEditedCell(this, rowKey, dayIndex));
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
-                        finishEdit();
-                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        saveEditedCell(this, rowKey, dayIndex);
+                    }
+                    if (e.key === 'Escape') {
                         this.classList.remove('editing');
-                        this.innerText = currentVal === '' ? '-' : currentVal;
                         currentEditCell = null;
+                        renderDashboard();
                     }
                 });
             });
         });
 
-        // Compute top-level goal summary percentages
-        const runPct = Math.round((weekly.run / WEEKLY_GOALS.run) * 100);
-        const bikePct = Math.round((weekly.bike / WEEKLY_GOALS.bike) * 100);
-        const strengthPct = Math.round((weekly.strength / WEEKLY_GOALS.strength) * 100);
-        const crunchPct = Math.round((weekly.crunches / WEEKLY_GOALS.crunches) * 100);
-        const pullupPct = Math.round((weekly.pullups / WEEKLY_GOALS.pullups) * 100);
-
-        // Update card numbers (Daily values)
         document.getElementById('stat-run').innerText = `${daily.run} min`;
         document.getElementById('stat-bike').innerText = `${daily.bike} min`;
         document.getElementById('stat-strength').innerText = `${daily.strength} min`;
-        document.getElementById('stat-reps').innerText = `${daily.crunches} / ${daily.pullups}`;
+        document.getElementById('stat-reps').innerText = `${(daily.crunches + daily.pullups).toLocaleString()} reps`;
 
-        // Update card percentages
-        document.getElementById('progress-run').innerHTML = `<span class="progress-percentage">${runPct}%</span> of weekly goal (${weekly.run}/${WEEKLY_GOALS.run}m)`;
-        document.getElementById('progress-bike').innerHTML = `<span class="progress-percentage">${bikePct}%</span> of weekly goal (${weekly.bike}/${WEEKLY_GOALS.bike}m)`;
-        document.getElementById('progress-strength').innerHTML = `<span class="progress-percentage">${strengthPct}%</span> of weekly goal (${weekly.strength}/${WEEKLY_GOALS.strength}m)`;
-        document.getElementById('progress-reps').innerHTML = `Weekly: <span class="progress-percentage">${crunchPct}%</span> C (${weekly.crunches}/${WEEKLY_GOALS.crunches}) | <span class="progress-percentage">${pullupPct}%</span> P (${weekly.pullups}/${WEEKLY_GOALS.pullups})`;
-        
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Save Entry to Cloud";
+        document.getElementById('progress-run').innerHTML = `<span class="progress-percentage">${Math.round((weekly.run / WEEKLY_GOALS.run) * 100)}%</span> of weekly goal (${weekly.run}/${WEEKLY_GOALS.run} min)`;
+        document.getElementById('progress-bike').innerHTML = `<span class="progress-percentage">${Math.round((weekly.bike / WEEKLY_GOALS.bike) * 100)}%</span> of weekly goal (${weekly.bike}/${WEEKLY_GOALS.bike} min)`;
+        document.getElementById('progress-strength').innerHTML = `<span class="progress-percentage">${Math.round((weekly.strength / WEEKLY_GOALS.strength) * 100)}%</span> of weekly goal (${weekly.strength}/${WEEKLY_GOALS.strength} min)`;
+        const totalWeeklyReps = weekly.crunches + weekly.pullups;
+        const totalWeeklyRepsGoal = WEEKLY_GOALS.crunches + WEEKLY_GOALS.pullups;
+        document.getElementById('progress-reps').innerHTML = `<span class="progress-percentage">${Math.round((totalWeeklyReps / totalWeeklyRepsGoal) * 100)}%</span> of weekly goal (${totalWeeklyReps.toLocaleString()}/${totalWeeklyRepsGoal.toLocaleString()} reps)`;
     }
 
-    // Initialize data engines
     fetchCloudHistory();
     fetchRunTrackerData();
+    updateBikeBankDisplay();
 </script>
 
 </body>
