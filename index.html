@@ -212,52 +212,41 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            text-align: left;
-            font-size: 14px;
+            text-align: center;
+            font-size: 13px;
         }
 
         th {
             color: var(--text-muted);
-            font-weight: 500;
-            padding: 12px;
+            font-weight: 600;
+            padding: 12px 8px;
             border-bottom: 2px solid var(--border-color);
-            font-size: 13px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        th.row-label-header, td.row-label {
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-main);
+            min-width: 110px;
         }
 
         td {
-            padding: 12px;
+            padding: 12px 8px;
             border-bottom: 1px solid var(--border-color);
-            vertical-align: top;
+            color: var(--text-muted);
         }
 
         tr:hover td {
             background-color: var(--bg-surface);
         }
-
-        .note-text {
-            max-width: 200px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: var(--text-muted);
-            font-size: 13px;
+        
+        td.has-value {
+            color: var(--text-main);
+            font-weight: 500;
         }
-
-        .note-text:hover {
-            white-space: normal;
-            word-break: break-word;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .badge-run { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
-        .badge-bike { background: rgba(30, 144, 255, 0.2); color: #1e90ff; }
-        .badge-strength { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
 
         .status-msg {
             font-size: 13px;
@@ -375,20 +364,23 @@
         </div>
 
         <div class="history-section">
-            <h2>Cloud Session History</h2>
+            <h2 id="weekViewTitle">Week to Date Summary</h2>
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Cardio (Min)</th>
-                            <th>Strength</th>
-                            <th>Reps</th>
-                            <th>Notes</th>
+                            <th class="row-label-header">Metric</th>
+                            <th id="th-mon">Mon</th>
+                            <th id="th-tue">Tue</th>
+                            <th id="th-wed">Wed</th>
+                            <th id="th-thu">Thu</th>
+                            <th id="th-fri">Fri</th>
+                            <th id="th-sat">Sat</th>
+                            <th id="th-sun">Sun</th>
                         </tr>
                     </thead>
-                    <tbody id="historyTableBody">
-                        <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Fetching history from Google Sheet...</td></tr>
+                    <tbody id="weekTableBody">
+                        <tr><td colspan="8" style="text-align:center;">Loading cloud summary...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -400,7 +392,6 @@
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
     let fitnessData = [];
 
-    // Updated Weekly Goals Custom Targets
     const WEEKLY_GOALS = {
         run: 180,
         bike: 420,
@@ -431,25 +422,25 @@
         })
         .catch(error => {
             console.error('Error fetching data:', error);
-            document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4757;">Failed to download history from cloud.</td></tr>';
+            document.getElementById('weekTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff4757;">Failed to download metrics from cloud.</td></tr>';
         });
     }
 
-    // Helper to calculate Mon-Sun window based on form's selected date input
-    function getWeekRange(dateString) {
+    // Returns array of ISO date strings [Mon, Tue, ..., Sun] based on target date
+    function getWeekDays(dateString) {
         const target = new Date(dateString + 'T00:00:00');
-        const dayOfWeek = target.getDay(); // 0 = Sun, 1 = Mon...
+        const dayOfWeek = target.getDay(); 
         
         const monday = new Date(target);
         monday.setDate(target.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
         
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        
-        return {
-            start: monday.toISOString().split('T')[0],
-            end: sunday.toISOString().split('T')[0]
-        };
+        const days = [];
+        for(let i = 0; i < 7; i++) {
+            const current = new Date(monday);
+            current.setDate(monday.getDate() + i);
+            days.push(current.toISOString().split('T')[0]);
+        }
+        return days;
     }
 
     form.addEventListener('submit', function(e) {
@@ -498,24 +489,38 @@
     }
 
     function renderDashboard() {
-        const tbody = document.getElementById('historyTableBody');
+        const tbody = document.getElementById('weekTableBody');
         tbody.innerHTML = '';
 
         const selectedDate = dateInput.value; 
-        const weekRange = getWeekRange(selectedDate);
+        const weekDays = getWeekDays(selectedDate);
+        
+        // Update header sub-labels to show day numbers
+        const dayLabels = ['mon','tue','wed','thu','fri','sat','sun'];
+        dayLabels.forEach((label, index) => {
+            const cleanDayNum = weekDays[index].split('-')[2];
+            document.getElementById(`th-${label}`).innerHTML = `${label.toUpperCase()}<br><span style="font-size:10px; font-weight:normal; color:var(--text-muted);">${cleanDayNum}</span>`;
+        });
 
-        // Daily accumulator totals
+        // Set dynamic timeframe header title 
+        document.getElementById('weekViewTitle').innerText = `Week View (${weekDays[0]} to ${weekDays[6]})`;
+
+        // Matrix map to keep tracking keys paired with day data
         let daily = { run: 0, bike: 0, strength: 0, crunches: 0, pullups: 0 };
-        // Weekly accumulator totals
         let weekly = { run: 0, bike: 0, strength: 0, crunches: 0, pullups: 0 };
-
-        if (fitnessData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No entries logged yet.</td></tr>';
-            return;
-        }
+        
+        // Structures for mapping values dynamically across the columns
+        const rowStructure = {
+            runTime: { label: 'Run Time (m)', days: [0,0,0,0,0,0,0] },
+            bikeTime: { label: 'Bike Time (m)', days: [0,0,0,0,0,0,0] },
+            strengthTime: { label: 'Strength (m)', days: [0,0,0,0,0,0,0] },
+            crunches: { label: 'Crunches', days: [0,0,0,0,0,0,0] },
+            pullups: { label: 'Pull Ups', days: [0,0,0,0,0,0,0] },
+            deficit: { label: 'Calorie Deficit', days: [0,0,0,0,0,0,0] }
+        };
 
         fitnessData.forEach(entry => {
-            // Aggregate target individual day calculations
+            // Log target day calculations
             if (entry.date === selectedDate) {
                 daily.run += entry.runTime || 0;
                 daily.bike += entry.bikeTime || 0;
@@ -524,54 +529,54 @@
                 daily.pullups += entry.pullups || 0;
             }
             
-            // Aggregate target weekly timeframe window computations
-            if (entry.date >= weekRange.start && entry.date <= weekRange.end) {
+            // Map data items into the weekly day-of-week slots
+            const dayIndex = weekDays.indexOf(entry.date);
+            if (dayIndex !== -1) {
+                rowStructure.runTime.days[dayIndex] += entry.runTime || 0;
+                rowStructure.bikeTime.days[dayIndex] += entry.bikeTime || 0;
+                rowStructure.strengthTime.days[dayIndex] += entry.strengthTime || 0;
+                rowStructure.crunches.days[dayIndex] += entry.crunches || 0;
+                rowStructure.pullups.days[dayIndex] += entry.pullups || 0;
+                rowStructure.deficit.days[dayIndex] += entry.deficit || 0;
+
+                // Also calculate header totals
                 weekly.run += entry.runTime || 0;
                 weekly.bike += entry.bikeTime || 0;
                 weekly.strength += entry.strengthTime || 0;
                 weekly.crunches += entry.crunches || 0;
                 weekly.pullups += entry.pullups || 0;
             }
+        });
 
-            // Render log row items
+        // Loop over structure object keys and construct HTML rows
+        Object.keys(rowStructure).forEach(key => {
             const tr = document.createElement('tr');
-            const cardioText = `
-                ${entry.runTime ? `<span class="badge badge-run">Run: ${entry.runTime}m</span><br>` : ''}
-                ${entry.bikeTime ? `<span class="badge badge-bike">Bike: ${entry.bikeTime}m</span>` : ''}
-                ${!entry.runTime && !entry.bikeTime ? '-' : ''}
-            `;
-            const strengthText = entry.strengthTime ? `<span class="badge badge-strength">${entry.strengthTime}m</span>` : '-';
-            let repsText = [];
-            if(entry.crunches) repsText.push(`C: ${entry.crunches}`);
-            if(entry.pullups) repsText.push(`P: ${entry.pullups}`);
-            const repsDisplay = repsText.length ? repsText.join(' / ') : '-';
-
-            tr.innerHTML = `
-                <td style="font-weight:600; white-space:nowrap;">${entry.date}</td>
-                <td>${cardioText}</td>
-                <td>${strengthText}</td>
-                <td>${repsDisplay}</td>
-                <td><div class="note-text" title="${entry.notes || ''}">${entry.notes || '-'}</div></td>
-            `;
+            let cellsHTML = `<td class="row-label">${rowStructure[key].label}</td>`;
+            
+            rowStructure[key].days.forEach(val => {
+                const displayVal = val === 0 ? '-' : val.toLocaleString();
+                const cssClass = val > 0 ? 'class="has-value"' : '';
+                cellsHTML += `<td ${cssClass}>${displayVal}</td>`;
+            });
+            
+            tr.innerHTML = cellsHTML;
             tbody.appendChild(tr);
         });
 
-        // Compute percentages toward your brand new targets
+        // Compute top-level goal summary percentages
         const runPct = Math.round((weekly.run / WEEKLY_GOALS.run) * 100);
         const bikePct = Math.round((weekly.bike / WEEKLY_GOALS.bike) * 100);
         const strengthPct = Math.round((weekly.strength / WEEKLY_GOALS.strength) * 100);
-        
-        // Multi-progress metrics calculation for mixed reps card
         const crunchPct = Math.round((weekly.crunches / WEEKLY_GOALS.crunches) * 100);
         const pullupPct = Math.round((weekly.pullups / WEEKLY_GOALS.pullups) * 100);
 
-        // Update card numbers (Daily metric values)
+        // Update card numbers (Daily values)
         document.getElementById('stat-run').innerText = `${daily.run} min`;
         document.getElementById('stat-bike').innerText = `${daily.bike} min`;
         document.getElementById('stat-strength').innerText = `${daily.strength} min`;
         document.getElementById('stat-reps').innerText = `${daily.crunches} / ${daily.pullups}`;
 
-        // Update subtext targets (Weekly percentages & running totals)
+        // Update card percentages
         document.getElementById('progress-run').innerHTML = `<span class="progress-percentage">${runPct}%</span> of weekly goal (${weekly.run}/${WEEKLY_GOALS.run}m)`;
         document.getElementById('progress-bike').innerHTML = `<span class="progress-percentage">${bikePct}%</span> of weekly goal (${weekly.bike}/${WEEKLY_GOALS.bike}m)`;
         document.getElementById('progress-strength').innerHTML = `<span class="progress-percentage">${strengthPct}%</span> of weekly goal (${weekly.strength}/${WEEKLY_GOALS.strength}m)`;
