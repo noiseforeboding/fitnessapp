@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Tracker Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #121214;
+            --bg-secondary: #1a1a1e;
+            --bg-surface: #26262b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-run: #ff4757;
+            --accent-bike: #1e90ff;
+            --accent-strength: #2ed573;
+            --accent-misc: #ffa502;
+            --border-color: #374151;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Dashboard Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .stat-card.run::before { background-color: var(--accent-run); }
+        .stat-card.bike::before { background-color: var(--accent-bike); }
+        .stat-card.strength::before { background-color: var(--accent-strength); }
+        .stat-card.misc::before { background-color: var(--accent-misc); }
+
+        .stat-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        /* Main Workspace split layout using table fallback style / block layout for wide styling */
+        .workspace {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .form-section {
+            flex: 1;
+            min-width: 320px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            align-self: flex-start;
+        }
+
+        .history-section {
+            flex: 2;
+            min-width: 450px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* Form styling */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        button {
+            width: 100%;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            background-color: #4338ca;
+        }
+
+        /* Table Styling */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 12px;
+            border-bottom: 2px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        tr:hover td {
+            background-color: var(--bg-surface);
+        }
+
+        .note-text {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .note-text:hover {
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-run { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        .badge-bike { background: rgba(30, 144, 255, 0.2); color: #1e90ff; }
+        .badge-strength { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+
+        .clear-btn {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            width: auto;
+            padding: 6px 12px;
+            font-size: 12px;
+            margin-top: 0;
+        }
+        .clear-btn:hover {
+            background-color: rgba(255, 71, 87, 0.1);
+            color: var(--accent-run);
+            border-color: var(--accent-run);
+        }
+
+        @media (max-width: 768px) {
+            .workspace {
+                flex-direction: column;
+            }
+            .form-section, .history-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>Fitness Tracker</h1>
+            <div class="subtitle">Unified ledger formatting for your active metrics</div>
+        </div>
+        <button class="clear-btn" onclick="clearData()">Clear Browser Storage</button>
+    </header>
+
+    <!-- Stats Dashboard Area -->
+    <div class="stats-grid">
+        <div class="stat-card run">
+            <div class="stat-label">Total Running</div>
+            <div class="stat-value" id="stat-run">0 min</div>
+        </div>
+        <div class="stat-card bike">
+            <div class="stat-label">Total Cycling</div>
+            <div class="stat-value" id="stat-bike">0 min</div>
+        </div>
+        <div class="stat-card strength">
+            <div class="stat-label">Strength Training</div>
+            <div class="stat-value" id="stat-strength">0 min</div>
+        </div>
+        <div class="stat-card misc">
+            <div class="stat-label">Crunches / Pullups</div>
+            <div class="stat-value" id="stat-reps">0 / 0</div>
+        </div>
+    </div>
+
+    <!-- Main Content Section -->
+    <div class="workspace">
+        
+        <!-- Input Form Section -->
+        <div class="form-section">
+            <h2>Log Today's Activity</h2>
+            <form id="activityForm">
+                <div class="form-group">
+                    <label for="date">Date</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="runTime">Run Time (min)</label>
+                        <input type="number" id="runTime" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="bikeTime">Bike Time (min)</label>
+                        <input type="number" id="bikeTime" min="0" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="strengthTime">Strength (min)</label>
+                        <input type="number" id="strengthTime" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="deficit">Calorie Deficit</label>
+                        <input type="number" id="deficit" min="0" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="crunches">Crunches</label>
+                        <input type="number" id="crunches" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="pullups">Pull Ups</label>
+                        <input type="number" id="pullups" min="0" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="weight">Weight (lbs)</label>
+                        <input type="number" step="0.1" id="weight" placeholder="0.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="alcohol">Alcohol Units</label>
+                        <input type="number" id="alcohol" min="0" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Daily Highlights / Notes</label>
+                    <textarea id="notes" rows="3" placeholder="Good things, family updates, sleep, etc..."></textarea>
+                </div>
+
+                <button type="submit">Save Entry</button>
+            </form>
+        </div>
+
+        <!-- History Ledger Section -->
+        <div class="history-section">
+            <h2>Activity History Log</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Cardio (Min)</th>
+                            <th>Strength</th>
+                            <th>Reps</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- Dynamic content injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Load initial data or fallback to sample row based on your sheet sample
+    let fitnessData = JSON.parse(localStorage.getItem('fitnessData')) || [
+        {
+            date: '2026-03-30',
+            runTime: 40,
+            bikeTime: 30,
+            strengthTime: 80,
+            deficit: 350,
+            crunches: 0,
+            pullups: 50,
+            weight: '',
+            alcohol: '',
+            notes: 'Office day. Sleeping well.'
+        }
+    ];
+
+    // Auto-set modern input date to today
+    document.getElementById('date').valueAsDate = new Date();
+
+    const form = document.getElementById('activityForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const entry = {
+            date: document.getElementById('date').value,
+            runTime: parseInt(document.getElementById('runTime').value) || 0,
+            bikeTime: parseInt(document.getElementById('bikeTime').value) || 0,
+            strengthTime: parseInt(document.getElementById('strengthTime').value) || 0,
+            deficit: parseInt(document.getElementById('deficit').value) || 0,
+            crunches: parseInt(document.getElementById('crunches').value) || 0,
+            pullups: parseInt(document.getElementById('pullups').value) || 0,
+            weight: document.getElementById('weight').value || '',
+            alcohol: document.getElementById('alcohol').value || '',
+            notes: document.getElementById('notes').value || ''
+        };
+
+        // Prevent duplicate date entries by overwriting or push new
+        const existingIdx = fitnessData.findIndex(item => item.date === entry.date);
+        if(existingIdx > -1) {
+            fitnessData[existingIdx] = entry;
+        } else {
+            fitnessData.push(entry);
+        }
+
+        // Sort data chronologically descending (newest first)
+        fitnessData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        localStorage.setItem('fitnessData', JSON.stringify(fitnessData));
+        form.reset();
+        document.getElementById('date').valueAsDate = new Date();
+        
+        renderDashboard();
+    });
+
+    function renderDashboard() {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+
+        let totalRun = 0;
+        let totalBike = 0;
+        let totalStrength = 0;
+        let totalCrunches = 0;
+        let totalPullups = 0;
+
+        fitnessData.forEach(entry => {
+            // Aggregate metrics
+            totalRun += entry.runTime || 0;
+            totalBike += entry.bikeTime || 0;
+            totalStrength += entry.strengthTime || 0;
+            totalCrunches += entry.crunches || 0;
+            totalPullups += entry.pullups || 0;
+
+            // Generate clean row layout
+            const tr = document.createElement('tr');
+            
+            // Format single cell output nicely
+            const cardioText = `
+                ${entry.runTime ? `<span class="badge badge-run">Run: ${entry.runTime}m</span><br>` : ''}
+                ${entry.bikeTime ? `<span class="badge badge-bike">Bike: ${entry.bikeTime}m</span>` : ''}
+                ${!entry.runTime && !entry.bikeTime ? '-' : ''}
+            `;
+
+            const strengthText = entry.strengthTime ? `<span class="badge badge-strength">${entry.strengthTime} min</span>` : '-';
+            
+            let repsText = [];
+            if(entry.crunches) repsText.push(`C: ${entry.crunches}`);
+            if(entry.pullups) repsText.push(`P: ${entry.pullups}`);
+            const repsDisplay = repsText.length ? repsText.join(' / ') : '-';
+
+            tr.innerHTML = `
+                <td style="font-weight:600; white-space:nowrap;">${entry.date}</td>
+                <td>${cardioText}</td>
+                <td>${strengthText}</td>
+                <td>${repsDisplay}</td>
+                <td><div class="note-text" title="${entry.notes || ''}">${entry.notes || '-'}</div></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Update dashboard widgets
+        document.getElementById('stat-run').innerText = `${totalRun} min`;
+        document.getElementById('stat-bike').innerText = `${totalBike} min`;
+        document.getElementById('stat-strength').innerText = `${totalStrength} min`;
+        document.getElementById('stat-reps').innerText = `${totalCrunches} / ${totalPullups}`;
+    }
+
+    function clearData() {
+        if(confirm('Are you sure you want to clear your local prototype storage?')) {
+            localStorage.removeItem('fitnessData');
+            fitnessData = [];
+            renderDashboard();
+        }
+    }
+
+    // Initial render call on page load
+    renderDashboard();
+</script>
+
+</body>
+</html>
