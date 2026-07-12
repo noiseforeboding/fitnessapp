@@ -57,7 +57,6 @@
             font-size: 14px;
         }
 
-        /* Dashboard Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -101,7 +100,6 @@
             font-weight: 700;
         }
 
-        /* Main Workspace split layout */
         .workspace {
             display: flex;
             gap: 24px;
@@ -133,7 +131,6 @@
             font-weight: 600;
         }
 
-        /* Form styling */
         .form-group {
             margin-bottom: 16px;
         }
@@ -196,7 +193,6 @@
             cursor: not-allowed;
         }
 
-        /* Table Styling */
         .table-container {
             overflow-x: auto;
         }
@@ -280,30 +276,26 @@
         </div>
     </header>
 
-    <!-- Stats Dashboard Area -->
     <div class="stats-grid">
         <div class="stat-card run">
             <div class="stat-label">Total Running</div>
-            <div class="stat-value" id="stat-run">0 min</div>
+            <div class="stat-value" id="stat-run">Loading...</div>
         </div>
         <div class="stat-card bike">
             <div class="stat-label">Total Cycling</div>
-            <div class="stat-value" id="stat-bike">0 min</div>
+            <div class="stat-value" id="stat-bike">Loading...</div>
         </div>
         <div class="stat-card strength">
             <div class="stat-label">Strength Training</div>
-            <div class="stat-value" id="stat-strength">0 min</div>
+            <div class="stat-value" id="stat-strength">Loading...</div>
         </div>
         <div class="stat-card misc">
             <div class="stat-label">Crunches / Pullups</div>
-            <div class="stat-value" id="stat-reps">0 / 0</div>
+            <div class="stat-value" id="stat-reps">Loading...</div>
         </div>
     </div>
 
-    <!-- Main Content Section -->
     <div class="workspace">
-        
-        <!-- Input Form Section -->
         <div class="form-section">
             <h2>Log Today's Activity</h2>
             <form id="activityForm">
@@ -366,9 +358,8 @@
             </form>
         </div>
 
-        <!-- History Ledger Section -->
         <div class="history-section">
-            <h2>Session History (This Device)</h2>
+            <h2>Cloud Session History</h2>
             <div class="table-container">
                 <table>
                     <thead>
@@ -381,33 +372,43 @@
                         </tr>
                     </thead>
                     <tbody id="historyTableBody">
-                        <!-- Dynamic content injected here -->
+                        <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Fetching history from Google Sheet...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
     </div>
 </div>
 
 <script>
-    // Your Google Apps Script Web App URL
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
+    let fitnessData = [];
 
-    // Track locally so user gets instant visual confirmation 
-    let fitnessData = JSON.parse(localStorage.getItem('fitnessData')) || [];
-
-    // Auto-set modern input date to today
     document.getElementById('date').valueAsDate = new Date();
 
     const form = document.getElementById('activityForm');
     const submitBtn = document.getElementById('submitBtn');
     const statusMessage = document.getElementById('statusMessage');
 
+    // Fetch initial log history from Google Sheet on page load
+    function fetchCloudHistory() {
+        fetch(CLOUD_URL)
+        .then(response => response.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+                fitnessData = data;
+                renderDashboard();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4757;">Failed to download history from cloud.</td></tr>';
+        });
+    }
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Disable button & give immediate submission state UI update
         submitBtn.disabled = true;
         submitBtn.innerText = "Saving to Google Sheet...";
         statusMessage.style.display = "none";
@@ -425,39 +426,23 @@
             notes: document.getElementById('notes').value || ''
         };
 
-        // Send payload via Fetch directly to your deployed Apps Script URL
         fetch(CLOUD_URL, {
             method: 'POST',
-            mode: 'no-cors', // Essential for Apps Script cross-origin POST handling
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(entry)
         })
         .then(() => {
-            // Success response actions
-            showStatus("Entry saved successfully to Google Sheets!", true);
-            
-            // Sync current device storage state visual look
-            const existingIdx = fitnessData.findIndex(item => item.date === entry.date);
-            if(existingIdx > -1) {
-                fitnessData[existingIdx] = entry;
-            } else {
-                fitnessData.push(entry);
-            }
-            fitnessData.sort((a, b) => new Date(b.date) - new Date(a.date));
-            localStorage.setItem('fitnessData', JSON.stringify(fitnessData));
-            
-            // UI Reset
+            showStatus("Entry saved successfully!", true);
             form.reset();
             document.getElementById('date').valueAsDate = new Date();
-            renderDashboard();
+            
+            // Re-fetch the database rows to make sure history table matches sheet exactly
+            setTimeout(fetchCloudHistory, 1500);
         })
         .catch(error => {
             console.error('Error:', error);
-            showStatus("Failed to save to cloud. Try again.", false);
-        })
-        .finally(() => {
+            showStatus("Failed to save. Try again.", false);
             submitBtn.disabled = false;
             submitBtn.innerText = "Save Entry to Cloud";
         });
@@ -480,7 +465,7 @@
         let totalPullups = 0;
 
         if (fitnessData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No entries logged yet. Try saving one above!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No entries logged yet.</td></tr>';
             return;
         }
 
@@ -499,7 +484,7 @@
                 ${!entry.runTime && !entry.bikeTime ? '-' : ''}
             `;
 
-            const strengthText = entry.strengthTime ? `<span class="badge badge-strength">${entry.strengthTime} min</span>` : '-';
+            const strengthText = entry.strengthTime ? `<span class="badge badge-strength">${entry.strengthTime}m</span>` : '-';
             
             let repsText = [];
             if(entry.crunches) repsText.push(`C: ${entry.crunches}`);
@@ -520,9 +505,13 @@
         document.getElementById('stat-bike').innerText = `${totalBike} min`;
         document.getElementById('stat-strength').innerText = `${totalStrength} min`;
         document.getElementById('stat-reps').innerText = `${totalCrunches} / ${totalPullups}`;
+        
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Save Entry to Cloud";
     }
 
-    renderDashboard();
+    // Trigger history load when page opens
+    fetchCloudHistory();
 </script>
 
 </body>
