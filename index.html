@@ -1043,7 +1043,8 @@
     }
 
     function formatRunTrackerRunCount(value) {
-        return `${value.toLocaleString()} run${value === 1 ? '' : 's'}`;
+        const safeValue = Number.isFinite(value) ? value : 0;
+        return `${safeValue.toLocaleString()} run${safeValue === 1 ? '' : 's'}`;
     }
 
     function formatRunTrackerDuration(minutes) {
