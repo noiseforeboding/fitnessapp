@@ -1099,10 +1099,18 @@
         ];
     }
 
+    function isRunTrackerDateInRange(entryDate, start, end, includeEnd = false) {
+        if (!entryDate || entryDate < start || entryDate > end) {
+            return false;
+        }
+
+        return includeEnd || entryDate.getTime() !== end.getTime();
+    }
+
     function summarizeRunTrackerRows(rows, start, end, includeEnd = false) {
         return rows.reduce((summary, row) => {
             const entryDate = parseRunTrackerLocalDate(row.rawDate || row.date);
-            if (!entryDate || entryDate < start || entryDate > end || (!includeEnd && entryDate.getTime() === end.getTime())) {
+            if (!isRunTrackerDateInRange(entryDate, start, end, includeEnd)) {
                 return summary;
             }
 
