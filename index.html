@@ -198,6 +198,21 @@
             color: var(--text-main);
         }
 
+        .run-summary-state {
+            grid-column: 1 / -1;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .run-summary-state.error {
+            border-color: var(--accent-run);
+            color: #ff9aa2;
+        }
+
         .run-tracker-pagination button {
             width: auto;
             margin-top: 0;
@@ -694,7 +709,9 @@
                 <button id="runTrackerNextBtn" type="button">Next →</button>
             </div>
         </div>
-        <div class="run-summary-grid" id="runTrackerSummaryGrid" role="region" aria-label="Run statistics summary"></div>
+        <div class="run-summary-grid" id="runTrackerSummaryGrid" role="region" aria-label="Run statistics summary">
+            <div class="run-summary-state">Loading run history summaries...</div>
+        </div>
         <div class="table-container">
             <table id="runTrackerTable">
                 <thead>
@@ -1163,6 +1180,12 @@
         }).join('');
     }
 
+    function renderRunTrackerSummaryState(message, isError = false) {
+        const summaryGrid = document.getElementById('runTrackerSummaryGrid');
+        const stateClass = isError ? 'run-summary-state error' : 'run-summary-state';
+        summaryGrid.innerHTML = `<div class="${stateClass}">${escapeHtml(message)}</div>`;
+    }
+
     function renderRunTrackerTable() {
         const body = document.getElementById('runTrackerBody');
         const pageInfo = document.getElementById('runTrackerPageInfo');
@@ -1226,7 +1249,7 @@
             console.error('Error fetching run tracker data:', error);
             runTrackerData = [];
             runTrackerPage = 1;
-            renderRunTrackerSummaryCards();
+            renderRunTrackerSummaryState('Failed to load run history summaries.', true);
             document.getElementById('runTrackerBody').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
             document.getElementById('runTrackerPageInfo').innerText = 'Page 1 of 1';
             document.getElementById('runTrackerPrevBtn').disabled = true;
