@@ -159,6 +159,60 @@
             flex-wrap: wrap;
         }
 
+        .run-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .run-summary-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .run-summary-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-run);
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .run-summary-metric + .run-summary-metric {
+            margin-top: 10px;
+        }
+
+        .run-summary-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .run-summary-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .run-summary-state {
+            grid-column: 1 / -1;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .run-summary-state.error {
+            border-color: var(--accent-run);
+            color: #ff9aa2;
+        }
+
         .run-tracker-pagination button {
             width: auto;
             margin-top: 0;
@@ -655,6 +709,9 @@
                 <button id="runTrackerNextBtn" type="button">Next →</button>
             </div>
         </div>
+        <div class="run-summary-grid" id="runTrackerSummaryGrid" role="region" aria-label="Run statistics summary">
+            <div class="run-summary-state">Loading run history summaries...</div>
+        </div>
         <div class="table-container">
             <table id="runTrackerTable">
                 <thead>
@@ -887,11 +944,255 @@
         return '';
     }
 
+    function parseRunTrackerLocalDate(value) {
+        if (!value) return null;
+
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return new Date(
+                value.getFullYear(),
+                value.getMonth(),
+                value.getDate(),
+                value.getHours(),
+                value.getMinutes(),
+                value.getSeconds(),
+                value.getMilliseconds()
+            );
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+            if (isoMatch) {
+                const [, year, month, day, hour = '0', minute = '0', second = '0'] = isoMatch;
+                return new Date(
+                    Number(year),
+                    Number(month) - 1,
+                    Number(day),
+                    Number(hour),
+                    Number(minute),
+                    Number(second)
+                );
+            }
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+
+        return parsed;
+    }
+
+    function parseRunTrackerNumber(value) {
+        if (value === undefined || value === null || String(value).trim() === '') {
+            return null;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : null;
+        }
+
+        const normalized = String(value).replace(/,/g, '').trim();
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function parseRunTrackerDurationMinutes(value) {
+        if (value === undefined || value === null || String(value).trim() === '') {
+            return null;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : null;
+        }
+
+        const trimmed = String(value).trim();
+        if (/^\d+(\.\d+)?$/.test(trimmed)) {
+            return Number.parseFloat(trimmed);
+        }
+
+        const colonParts = trimmed.split(':').map(part => part.trim());
+        if (colonParts.length >= 2 && colonParts.length <= 3 && colonParts.every(part => /^\d+$/.test(part))) {
+            const numericParts = colonParts.map(Number);
+            if (numericParts.length === 3) {
+                const [hours, minutes, seconds] = numericParts;
+                return (hours * 60) + minutes + (seconds / 60);
+            }
+
+            const [minutes, seconds] = numericParts;
+            return minutes + (seconds / 60);
+        }
+
+        const hoursMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*h/i);
+        const minutesMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*m/i);
+        const secondsMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*s/i);
+        if (hoursMatch || minutesMatch || secondsMatch) {
+            return (hoursMatch ? Number.parseFloat(hoursMatch[1]) * 60 : 0)
+                + (minutesMatch ? Number.parseFloat(minutesMatch[1]) : 0)
+                + (secondsMatch ? Number.parseFloat(secondsMatch[1]) / 60 : 0);
+        }
+
+        return null;
+    }
+
+    function formatRunTrackerDistance(value) {
+        const safeValue = Number.isFinite(value) ? value : 0;
+        return `${safeValue.toLocaleString(undefined, {
+            maximumFractionDigits: 2
+        })} km`;
+    }
+
+    function formatRunTrackerRunCount(value) {
+        return `${value.toLocaleString()} run${value === 1 ? '' : 's'}`;
+    }
+
+    function formatRunTrackerDuration(minutes) {
+        const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
+        const totalSeconds = Math.round(safeMinutes * 60);
+        if (totalSeconds === 0) {
+            return '0s';
+        }
+
+        const hours = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const parts = [];
+
+        if (hours > 0) {
+            parts.push(`${hours}h`);
+        }
+
+        if (mins > 0 || hours > 0) {
+            parts.push(`${mins}m`);
+        }
+
+        if (seconds > 0) {
+            parts.push(`${seconds}s`);
+        }
+
+        return parts.join(' ');
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getStartOfMonth(date, monthOffset = 0) {
+        const shifted = new Date(date.getFullYear(), date.getMonth() + monthOffset, 1);
+        return new Date(shifted.getFullYear(), shifted.getMonth(), 1);
+    }
+
+    function createRunTrackerSummaryPeriods(now = new Date()) {
+        return [
+            {
+                label: 'This month',
+                start: getStartOfMonth(now, 0),
+                end: now,
+                includeEnd: true
+            },
+            {
+                label: 'Last month',
+                start: getStartOfMonth(now, -1),
+                end: getStartOfMonth(now, 0),
+                includeEnd: false
+            },
+            {
+                label: 'Last 3 months',
+                start: getStartOfMonth(now, -2),
+                end: now,
+                includeEnd: true
+            },
+            {
+                label: 'Year to date',
+                start: new Date(now.getFullYear(), 0, 1),
+                end: now,
+                includeEnd: true
+            }
+        ];
+    }
+
+    function isRunTrackerDateInRange(entryDate, start, end, includeEnd = false) {
+        if (!entryDate || entryDate < start || entryDate > end) {
+            return false;
+        }
+
+        return includeEnd || entryDate.getTime() !== end.getTime();
+    }
+
+    function summarizeRunTrackerRows(rows, start, end, includeEnd = false) {
+        return rows.reduce((summary, row) => {
+            const entryDate = parseRunTrackerLocalDate(row.rawDate || row.date);
+            if (!isRunTrackerDateInRange(entryDate, start, end, includeEnd)) {
+                return summary;
+            }
+
+            const distance = parseRunTrackerNumber(row.distance);
+            const durationMinutes = parseRunTrackerDurationMinutes(row.time);
+            const hasDistance = Number.isFinite(distance);
+            const hasDuration = Number.isFinite(durationMinutes);
+
+            if (!hasDistance && !hasDuration) {
+                return summary;
+            }
+
+            summary.distance += hasDistance ? distance : 0;
+            summary.runCount += 1;
+            summary.durationMinutes += hasDuration ? durationMinutes : 0;
+            return summary;
+        }, {
+            distance: 0,
+            runCount: 0,
+            durationMinutes: 0
+        });
+    }
+
+    function renderRunTrackerSummaryCards() {
+        const summaryGrid = document.getElementById('runTrackerSummaryGrid');
+        const periods = createRunTrackerSummaryPeriods();
+
+        summaryGrid.innerHTML = periods.map(period => {
+            const summary = summarizeRunTrackerRows(runTrackerData, period.start, period.end, period.includeEnd);
+            const summaryLabel = escapeHtml(period.label);
+            const distanceText = escapeHtml(formatRunTrackerDistance(summary.distance));
+            const runCountText = escapeHtml(formatRunTrackerRunCount(summary.runCount));
+            const durationText = escapeHtml(formatRunTrackerDuration(summary.durationMinutes));
+
+            return `<div class="run-summary-card">
+                <div class="run-summary-title">${summaryLabel}</div>
+                <div class="run-summary-metric">
+                    <div class="run-summary-label">Total distance</div>
+                    <div class="run-summary-value">${distanceText}</div>
+                </div>
+                <div class="run-summary-metric">
+                    <div class="run-summary-label">Run count</div>
+                    <div class="run-summary-value">${runCountText}</div>
+                </div>
+                <div class="run-summary-metric">
+                    <div class="run-summary-label">Total time</div>
+                    <div class="run-summary-value">${durationText}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderRunTrackerSummaryState(message, isError = false) {
+        const summaryGrid = document.getElementById('runTrackerSummaryGrid');
+        const stateClass = isError ? 'run-summary-state error' : 'run-summary-state';
+        summaryGrid.innerHTML = `<div class="${stateClass}">${escapeHtml(message)}</div>`;
+    }
+
     function renderRunTrackerTable() {
         const body = document.getElementById('runTrackerBody');
         const pageInfo = document.getElementById('runTrackerPageInfo');
         const prevBtn = document.getElementById('runTrackerPrevBtn');
         const nextBtn = document.getElementById('runTrackerNextBtn');
+
+        renderRunTrackerSummaryCards();
 
         if (!runTrackerData.length) {
             body.innerHTML = '<tr><td colspan="3" style="text-align:center;">No run tracker history found.</td></tr>';
@@ -946,6 +1247,9 @@
         })
         .catch(error => {
             console.error('Error fetching run tracker data:', error);
+            runTrackerData = [];
+            runTrackerPage = 1;
+            renderRunTrackerSummaryState('Failed to load run history summaries.', true);
             document.getElementById('runTrackerBody').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
             document.getElementById('runTrackerPageInfo').innerText = 'Page 1 of 1';
             document.getElementById('runTrackerPrevBtn').disabled = true;
