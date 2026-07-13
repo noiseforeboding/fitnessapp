@@ -694,7 +694,7 @@
                 <button id="runTrackerNextBtn" type="button">Next →</button>
             </div>
         </div>
-        <div class="run-summary-grid" id="runTrackerSummaryGrid"></div>
+        <div class="run-summary-grid" id="runTrackerSummaryGrid" role="region" aria-label="Run statistics summary"></div>
         <div class="table-container">
             <table id="runTrackerTable">
                 <thead>
@@ -1052,38 +1052,53 @@
         return parts.join(' ');
     }
 
-    function createRunTrackerSummaryPeriods(now = new Date()) {
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
+    function getStartOfMonth(date, monthOffset = 0) {
+        const shifted = new Date(date.getFullYear(), date.getMonth() + monthOffset, 1);
+        return new Date(shifted.getFullYear(), shifted.getMonth(), 1);
+    }
+
+    function createRunTrackerSummaryPeriods(now = new Date()) {
         return [
             {
                 label: 'This month',
-                start: new Date(currentYear, currentMonth, 1),
-                end: now
+                start: getStartOfMonth(now, 0),
+                end: now,
+                includeEnd: true
             },
             {
                 label: 'Last month',
-                start: new Date(currentYear, currentMonth - 1, 1),
-                end: new Date(currentYear, currentMonth, 1)
+                start: getStartOfMonth(now, -1),
+                end: getStartOfMonth(now, 0),
+                includeEnd: false
             },
             {
                 label: 'Last 3 months',
-                start: new Date(currentYear, currentMonth - 2, 1),
-                end: now
+                start: getStartOfMonth(now, -2),
+                end: now,
+                includeEnd: true
             },
             {
                 label: 'Year to date',
-                start: new Date(currentYear, 0, 1),
-                end: now
+                start: new Date(now.getFullYear(), 0, 1),
+                end: now,
+                includeEnd: true
             }
         ];
     }
 
-    function summarizeRunTrackerRows(rows, start, end) {
+    function summarizeRunTrackerRows(rows, start, end, includeEnd = false) {
         return rows.reduce((summary, row) => {
             const entryDate = parseRunTrackerLocalDate(row.rawDate || row.date);
-            if (!entryDate || entryDate < start || entryDate >= end) {
+            if (!entryDate || entryDate < start || entryDate > end || (!includeEnd && entryDate.getTime() === end.getTime())) {
                 return summary;
             }
 
@@ -1112,21 +1127,25 @@
         const periods = createRunTrackerSummaryPeriods();
 
         summaryGrid.innerHTML = periods.map(period => {
-            const summary = summarizeRunTrackerRows(runTrackerData, period.start, period.end);
+            const summary = summarizeRunTrackerRows(runTrackerData, period.start, period.end, period.includeEnd);
+            const summaryLabel = escapeHtml(period.label);
+            const distanceText = escapeHtml(formatRunTrackerDistance(summary.distance));
+            const runCountText = escapeHtml(formatRunTrackerRunCount(summary.runCount));
+            const durationText = escapeHtml(formatRunTrackerDuration(summary.durationMinutes));
 
             return `<div class="run-summary-card">
-                <div class="run-summary-title">${period.label}</div>
+                <div class="run-summary-title">${summaryLabel}</div>
                 <div class="run-summary-metric">
                     <div class="run-summary-label">Total distance</div>
-                    <div class="run-summary-value">${formatRunTrackerDistance(summary.distance)}</div>
+                    <div class="run-summary-value">${distanceText}</div>
                 </div>
                 <div class="run-summary-metric">
                     <div class="run-summary-label">Run count</div>
-                    <div class="run-summary-value">${formatRunTrackerRunCount(summary.runCount)}</div>
+                    <div class="run-summary-value">${runCountText}</div>
                 </div>
                 <div class="run-summary-metric">
                     <div class="run-summary-label">Total time</div>
-                    <div class="run-summary-value">${formatRunTrackerDuration(summary.durationMinutes)}</div>
+                    <div class="run-summary-value">${durationText}</div>
                 </div>
             </div>`;
         }).join('');
