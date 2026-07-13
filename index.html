@@ -1032,6 +1032,10 @@
     function formatRunTrackerDuration(minutes) {
         const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
         const totalSeconds = Math.round(safeMinutes * 60);
+        if (totalSeconds === 0) {
+            return '0s';
+        }
+
         const hours = Math.floor(totalSeconds / 3600);
         const mins = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
@@ -1041,7 +1045,7 @@
             parts.push(`${hours}h`);
         }
 
-        if (mins > 0 || hours > 0 || totalSeconds === 0) {
+        if (mins > 0 || hours > 0) {
             parts.push(`${mins}m`);
         }
 
@@ -1214,7 +1218,7 @@
             console.error('Error fetching run tracker data:', error);
             runTrackerData = [];
             runTrackerPage = 1;
-            renderRunTrackerTable();
+            renderRunTrackerSummaryCards();
             document.getElementById('runTrackerBody').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ff4757;">Failed to download Run Tracker data from cloud.</td></tr>';
             document.getElementById('runTrackerPageInfo').innerText = 'Page 1 of 1';
             document.getElementById('runTrackerPrevBtn').disabled = true;
