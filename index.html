@@ -459,6 +459,12 @@
             min-width: 110px;
         }
 
+        .day-number {
+            font-size: 10px;
+            font-weight: normal;
+            color: var(--text-muted);
+        }
+
         th.total-header {
             background-color: var(--bg-surface);
             color: #6366f1;
@@ -609,12 +615,12 @@
                     <thead>
                         <tr>
                             <th class="row-label-header">Day</th>
-                            <th title="Run Time (minutes)" aria-label="Run Time (minutes)">Run</th>
-                            <th title="Bike Time (minutes)" aria-label="Bike Time (minutes)">Bike</th>
-                            <th title="Strength Time (minutes)" aria-label="Strength Time (minutes)">Str</th>
-                            <th title="Crunches" aria-label="Crunches">Cru</th>
-                            <th title="Pull Ups" aria-label="Pull Ups">Pull</th>
-                            <th title="Calorie Deficit" aria-label="Calorie Deficit">Def</th>
+                            <th title="Run Time (minutes)">Run</th>
+                            <th title="Bike Time (minutes)">Bike</th>
+                            <th title="Strength Time (minutes)">Str</th>
+                            <th title="Crunches">Cru</th>
+                            <th title="Pull Ups">Pull</th>
+                            <th title="Calorie Deficit">Def</th>
                         </tr>
                     </thead>
                     <tbody id="weekTableBody">
@@ -1226,7 +1232,7 @@
         weekDays.forEach((date, dayIndex) => {
             const tr = document.createElement('tr');
             const cleanDayNum = date.split('-')[2];
-            let cellsHTML = `<td class="row-label">${dayLabels[dayIndex]}<br><span style="font-size:10px; font-weight:normal; color:var(--text-muted);">${cleanDayNum}</span></td>`;
+            let cellsHTML = `<td class="row-label">${dayLabels[dayIndex]}<br><span class="day-number">${cleanDayNum}</span></td>`;
 
             metricKeys.forEach((key) => {
                 const val = rowStructure[key].days[dayIndex];
