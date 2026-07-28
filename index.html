@@ -1182,7 +1182,6 @@
         tbody.innerHTML = '';
 
         const weekDays = getWeekDays(viewDate.toISOString().split('T')[0]);
-        const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
         document.getElementById('weekViewTitle').innerText = `Week View`;
         document.getElementById('weekDateRange').innerText = `${weekDays[0]} to ${weekDays[6]}`;
@@ -1228,6 +1227,7 @@
         });
 
         const metricKeys = Object.keys(rowStructure);
+        const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
         weekDays.forEach((date, dayIndex) => {
             const tr = document.createElement('tr');
