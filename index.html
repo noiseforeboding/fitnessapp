@@ -595,75 +595,6 @@
     </div>
 
     <div class="workspace">
-        <div class="form-section">
-            <h2>Log Activity</h2>
-            <form id="activityForm">
-                <div class="form-group">
-                    <label for="date">Date</label>
-                    <input type="date" id="date" required>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="runTime">Run Time (min)</label>
-                        <input type="number" id="runTime" min="0" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="bikeTime">Bike Time (min)</label>
-                        <input type="number" id="bikeTime" min="0" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="strengthTime">Strength (min)</label>
-                        <input type="number" id="strengthTime" min="0" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="deficit">Calorie Deficit</label>
-                        <input type="number" id="deficit" min="0" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="crunches">Crunches</label>
-                        <input type="number" id="crunches" min="0" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="pullups">Pull Ups</label>
-                        <input type="number" id="pullups" min="0" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="weight">Weight (lbs)</label>
-                        <input type="number" step="0.1" id="weight" placeholder="0.0">
-                    </div>
-                    <div class="form-group">
-                        <label for="alcohol">Alcohol Units</label>
-                        <input type="number" id="alcohol" min="0" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="bike-bank-section">
-                    <div class="bike-bank-label">Bike Bank</div>
-                    <div class="bike-bank-value" id="bikeBankTotal">0 min</div>
-                    
-                    <div class="bike-bank-input-row">
-                        <input type="number" id="bikeBankAmount" min="0" placeholder="Minutes to add">
-                        <button type="button" id="addToBankBtn" class="bike-bank-add-btn">Add</button>
-                    </div>
-                    
-                    <button type="button" id="emptyBankBtn" class="bike-bank-empty-btn">Empty the Bank</button>
-                </div>
-
-                <button type="submit" id="submitBtn">Save Entry to Cloud</button>
-                <div id="statusMessage" class="status-msg"></div>
-            </form>
-        </div>
-
         <div class="history-section">
             <h2 id="weekViewTitle">Week to Date Summary</h2>
             
@@ -736,7 +667,6 @@
     
     let fitnessData = [];
     let viewDate = new Date();
-    let bikeBankData = {};
     let currentEditCell = null;
     let runTrackerData = [];
     let runTrackerPage = 1;
@@ -748,77 +678,6 @@
         pullups: 300,
         crunches: 18000
     };
-
-    const dateInput = document.getElementById('date');
-    dateInput.valueAsDate = new Date();
-
-    const addToBankBtn = document.getElementById('addToBankBtn');
-    const emptyBankBtn = document.getElementById('emptyBankBtn');
-    const bikeBankAmountInput = document.getElementById('bikeBankAmount');
-    const bikeTimeInput = document.getElementById('bikeTime');
-
-    addToBankBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const minutesToAdd = parseInt(bikeBankAmountInput.value, 10);
-        
-        if (!Number.isInteger(minutesToAdd) || minutesToAdd <= 0) {
-            showStatus("Enter a positive number of minutes to add to the bank.", false);
-            bikeBankAmountInput.focus();
-            return;
-        }
-
-        const selectedDate = dateInput.value;
-        if (!selectedDate) {
-            showStatus("Choose a date before using the bike bank.", false);
-            dateInput.focus();
-            return;
-        }
-
-        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
-        if (!bikeBankData[weekKey]) {
-            bikeBankData[weekKey] = 0;
-        }
-        bikeBankData[weekKey] += minutesToAdd;
-        saveBikeBankData();
-        bikeBankAmountInput.value = '';
-        updateBikeBankDisplay();
-        showStatus(`Added ${minutesToAdd} minute(s) to bike bank.`, true);
-    });
-
-    emptyBankBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-
-        const selectedDate = dateInput.value;
-        if (!selectedDate) {
-            showStatus("Choose a date before emptying the bike bank.", false);
-            dateInput.focus();
-            return;
-        }
-
-        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
-        const bankedMinutes = bikeBankData[weekKey] || 0;
-        
-        if (bankedMinutes <= 0) {
-            showStatus("No minutes in bike bank to empty.", false);
-            return;
-        }
-
-        const currentBikeTime = parseInt(bikeTimeInput.value, 10) || 0;
-        bikeTimeInput.value = currentBikeTime + bankedMinutes;
-        
-        bikeBankData[weekKey] = 0;
-        saveBikeBankData();
-        updateBikeBankDisplay();
-        showStatus(`Added ${bankedMinutes} minute(s) to today's bike time.`, true);
-    });
-
-    dateInput.addEventListener('change', () => {
-        viewDate = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : new Date();
-        if (fitnessData.length > 0) {
-            renderDashboard();
-        }
-        updateBikeBankDisplay();
-    });
 
     document.getElementById('prevWeekBtn').addEventListener('click', () => {
         viewDate.setDate(viewDate.getDate() - 7);
@@ -845,19 +704,13 @@
         }
     });
 
-    const form = document.getElementById('activityForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const statusMessage = document.getElementById('statusMessage');
-
     function fetchCloudHistory() {
         fetch(CLOUD_URL)
         .then(response => response.json())
         .then(data => {
             if (Array.isArray(data)) {
                 fitnessData = data;
-                loadBikeBankData();
                 renderDashboard();
-                updateBikeBankDisplay();
             }
         })
         .catch(error => {
@@ -1258,36 +1111,6 @@
         });
     }
 
-    function loadBikeBankData() {
-        const stored = localStorage.getItem('bikeBankData');
-        bikeBankData = stored ? JSON.parse(stored) : {};
-    }
-
-    function saveBikeBankData() {
-        localStorage.setItem('bikeBankData', JSON.stringify(bikeBankData));
-    }
-
-    function getWeekKey(date) {
-        const monday = new Date(date);
-        const dayOfWeek = monday.getDay();
-        monday.setDate(monday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-        return monday.toISOString().split('T')[0];
-    }
-
-    function updateBikeBankDisplay() {
-        const selectedDate = dateInput.value;
-        if (!selectedDate) {
-            document.getElementById('bikeBankTotal').innerText = '0 min';
-            emptyBankBtn.disabled = true;
-            return;
-        }
-
-        const weekKey = getWeekKey(new Date(selectedDate + 'T00:00:00'));
-        const balance = bikeBankData[weekKey] || 0;
-        document.getElementById('bikeBankTotal').innerText = `${balance} min`;
-        emptyBankBtn.disabled = balance <= 0;
-    }
-
     function getWeekDays(dateString) {
         const target = new Date(dateString + 'T00:00:00');
         const dayOfWeek = target.getDay(); 
@@ -1302,76 +1125,6 @@
             days.push(current.toISOString().split('T')[0]);
         }
         return days;
-    }
-
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Saving to Google Sheet...";
-        statusMessage.style.display = "none";
-        
-        const selectedDate = dateInput.value;
-        const runTimeToAdd = parseInt(document.getElementById('runTime').value) || 0;
-        const bikeTimeToAdd = parseInt(document.getElementById('bikeTime').value) || 0;
-        const strengthTimeToAdd = parseInt(document.getElementById('strengthTime').value) || 0;
-        const deficitToAdd = parseInt(document.getElementById('deficit').value) || 0;
-        const crunchesToAdd = parseInt(document.getElementById('crunches').value) || 0;
-        const pullupsToAdd = parseInt(document.getElementById('pullups').value) || 0;
-
-        let entry = fitnessData.find(e => e.date === selectedDate);
-        if (!entry) {
-            entry = {
-                date: selectedDate,
-                runTime: 0,
-                bikeTime: 0,
-                strengthTime: 0,
-                deficit: 0,
-                crunches: 0,
-                pullups: 0,
-                weight: '',
-                alcohol: ''
-            };
-        }
-
-        entry.runTime = (entry.runTime || 0) + runTimeToAdd;
-        entry.bikeTime = (entry.bikeTime || 0) + bikeTimeToAdd;
-        entry.strengthTime = (entry.strengthTime || 0) + strengthTimeToAdd;
-        entry.deficit = (entry.deficit || 0) + deficitToAdd;
-        entry.crunches = (entry.crunches || 0) + crunchesToAdd;
-        entry.pullups = (entry.pullups || 0) + pullupsToAdd;
-        entry.weight = document.getElementById('weight').value || entry.weight || '';
-        entry.alcohol = document.getElementById('alcohol').value || entry.alcohol || '';
-
-        fetch(CLOUD_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(entry)
-        })
-        .then(() => {
-            showStatus("Entry saved successfully!", true);
-            form.reset();
-            bikeBankAmountInput.value = '';
-            dateInput.valueAsDate = new Date();
-            viewDate = new Date();
-            updateBikeBankDisplay();
-            setTimeout(() => {
-                fetchCloudHistory();
-                fetchRunTrackerData();
-            }, 1500);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showStatus("Failed to save. Try again.", false);
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Save Entry to Cloud";
-        });
-    });
-
-    function showStatus(msg, isSuccess) {
-        statusMessage.innerText = msg;
-        statusMessage.className = "status-msg " + (isSuccess ? "status-success" : "status-error");
-        statusMessage.style.display = "block";
     }
 
     function saveEditedCell(cell, rowKey, dayIndex) {
@@ -1542,7 +1295,6 @@
 
     fetchCloudHistory();
     fetchRunTrackerData();
-    updateBikeBankDisplay();
 </script>
 
 </body>
