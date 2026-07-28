@@ -456,7 +456,7 @@
             text-align: left;
             font-weight: 600;
             color: var(--text-main);
-            min-width: 110px;
+            min-width: 55px;
         }
 
         .day-number {
@@ -1244,6 +1244,16 @@
             tr.innerHTML = cellsHTML;
             tbody.appendChild(tr);
         });
+
+        const totalTr = document.createElement('tr');
+        let totalHTML = `<td class="row-label total-cell">Total</td>`;
+        metricKeys.forEach((key) => {
+            const sum = rowStructure[key].days.reduce((a, b) => a + b, 0);
+            const displaySum = sum === 0 ? '-' : sum.toLocaleString();
+            totalHTML += `<td class="total-cell">${displaySum}</td>`;
+        });
+        totalTr.innerHTML = totalHTML;
+        tbody.appendChild(totalTr);
 
         document.querySelectorAll('td.editable').forEach(cell => {
             cell.addEventListener('click', function() {
