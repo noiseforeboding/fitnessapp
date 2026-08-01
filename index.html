@@ -1190,14 +1190,14 @@
     }
 
     function fetchRunTrackerData() {
-        fetch(RUN_TRACKER_URL)
+        return fetch(RUN_TRACKER_URL)
         .then(response => response.json())
         .then(data => {
             if (!Array.isArray(data) || data.length === 0) {
                 runTrackerData = [];
                 runTrackerPage = 1;
                 renderRunTrackerTable();
-                return;
+                return runTrackerData;
             }
 
             runTrackerData = data
@@ -1206,6 +1206,7 @@
 
             runTrackerPage = 1;
             renderRunTrackerTable();
+            return runTrackerData;
         })
         .catch(error => {
             console.error('Error fetching run tracker data:', error);
@@ -1216,6 +1217,7 @@
             document.getElementById('runTrackerPageInfo').innerText = 'Page 1 of 1';
             document.getElementById('runTrackerPrevBtn').disabled = true;
             document.getElementById('runTrackerNextBtn').disabled = true;
+            throw error;
         });
     }
 
@@ -1410,7 +1412,46 @@
     fetchRunTrackerData();
 
     // Log a Run modal
-    const RUN_TRACKER_POST_URL = "https://script.google.com/macros/s/AKfycbw2_fzG2F5N_SqvNKwtXthl7owx75rd6ZIBwfgRKSrQcdS5KmH0isgq1A0H1N-YUP8J/exec";
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function findLoggedRun(expectedRun) {
+        const expectedDistance = Number.parseFloat(expectedRun.distance);
+        const expectedTime = Number.parseFloat(expectedRun.time);
+
+        return runTrackerData.some(row => {
+            const rowDate = formatRunTrackerDate(row.rawDate || row.date);
+            const rowDistance = parseRunTrackerNumber(row.distance);
+            const rowTime = parseRunTrackerDurationMinutes(row.time);
+
+            return rowDate === expectedRun.date
+                && Number.isFinite(rowDistance)
+                && Number.isFinite(rowTime)
+                && Math.abs(rowDistance - expectedDistance) < 0.01
+                && Math.abs(rowTime - expectedTime) < 0.01;
+        });
+    }
+
+    async function confirmLoggedRun(expectedRun, maxAttempts = 4, delayMs = 1500) {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (attempt > 0) {
+                await wait(delayMs);
+            }
+
+            try {
+                await fetchRunTrackerData();
+            } catch (error) {
+                console.error('Error refreshing run tracker data:', error);
+            }
+
+            if (findLoggedRun(expectedRun)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     function openLogRunModal() {
         const today = new Date().toISOString().split('T')[0];
@@ -1441,7 +1482,7 @@
         }
     });
 
-    document.getElementById('logRunForm').addEventListener('submit', function(e) {
+    document.getElementById('logRunForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const date = document.getElementById('logRunDate').value.trim();
@@ -1460,23 +1501,31 @@
         statusEl.textContent = 'Saving...';
         statusEl.className = 'modal-status';
 
-        fetch(RUN_TRACKER_POST_URL, {
+        const payload = new URLSearchParams({
+            sheet: 'RunTracker',
+            date,
+            distance: String(distance),
+            time: String(time)
+        });
+
+        fetch(RUN_TRACKER_URL, {
             method: 'POST',
             mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheet: 'RunTracker', date, distance, time })
+            body: payload
         })
-        .then(() => {
+        .then(() => confirmLoggedRun({ date, distance, time }))
+        .then(confirmed => {
+            if (!confirmed) {
+                throw new Error('Run was not visible after refresh.');
+            }
+
             statusEl.textContent = 'Run logged successfully!';
             statusEl.className = 'modal-status success';
-            setTimeout(() => {
-                closeLogRunModal();
-                fetchRunTrackerData();
-            }, 1200);
+            setTimeout(closeLogRunModal, 1200);
         })
         .catch(error => {
             console.error('Error logging run:', error);
-            statusEl.textContent = 'Failed to save run. Please try again.';
+            statusEl.textContent = 'Could not confirm the saved run. Please check the sheet and try again.';
             statusEl.className = 'modal-status error';
             submitBtn.disabled = false;
         });
