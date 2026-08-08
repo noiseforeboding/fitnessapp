@@ -1409,9 +1409,6 @@
     fetchCloudHistory();
     fetchRunTrackerData();
 
-    // Log a Run modal
-    const RUN_TRACKER_POST_URL = "https://script.google.com/macros/s/AKfycbw2_fzG2F5N_SqvNKwtXthl7owx75rd6ZIBwfgRKSrQcdS5KmH0isgq1A0H1N-YUP8J/exec";
-
     function openLogRunModal() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('logRunDate').value = today;
@@ -1460,11 +1457,11 @@
         statusEl.textContent = 'Saving...';
         statusEl.className = 'modal-status';
 
-        fetch(RUN_TRACKER_POST_URL, {
+        fetch(RUN_TRACKER_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheet: 'RunTracker', date, distance, time })
+            body: JSON.stringify({ date, distance, time })
         })
         .then(() => {
             statusEl.textContent = 'Run logged successfully!';
