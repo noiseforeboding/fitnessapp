@@ -771,6 +771,7 @@
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzcrx4r1kJ_02dx4HH5ZJeULmv3EAyi2ahQSL1F935vUx_R71uXL3kU8wgypel9TKkd/exec";
     const RUN_TRACKER_URL = "https://script.google.com/macros/s/AKfycbw2_fzG2F5N_SqvNKwtXthl7owx75rd6ZIBwfgRKSrQcdS5KmH0isgq1A0H1N-YUP8J/exec?sheet=RunTracker";
+    const RUN_TRACKER_POST_URL = RUN_TRACKER_URL;
     const RUN_TRACKER_ROWS_PER_PAGE = 30;
     
     let fitnessData = [];
@@ -1409,9 +1410,6 @@
     fetchCloudHistory();
     fetchRunTrackerData();
 
-    // Log a Run modal
-    const RUN_TRACKER_POST_URL = "https://script.google.com/macros/s/AKfycbw2_fzG2F5N_SqvNKwtXthl7owx75rd6ZIBwfgRKSrQcdS5KmH0isgq1A0H1N-YUP8J/exec";
-
     function openLogRunModal() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('logRunDate').value = today;
@@ -1464,7 +1462,7 @@
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheet: 'RunTracker', date, distance, time })
+            body: JSON.stringify({ date, distance, time })
         })
         .then(() => {
             statusEl.textContent = 'Run logged successfully!';
