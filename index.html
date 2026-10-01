@@ -780,11 +780,10 @@
     let runTrackerPage = 1;
 
     const WEEKLY_GOALS = {
-        run: 180,
-        bike: 420,
-        strength: 240,
-        pullups: 300,
-        crunches: 18000
+        run: 200,
+        bike: 500,
+        strength: 300,
+        crunches: 35000
     };
 
     document.getElementById('prevWeekBtn').addEventListener('click', () => {
@@ -1401,8 +1400,8 @@
         document.getElementById('progress-run').innerHTML = `<span class="progress-percentage">${Math.round((weekly.run / WEEKLY_GOALS.run) * 100)}%</span> of weekly goal (${weekly.run}/${WEEKLY_GOALS.run} min)`;
         document.getElementById('progress-bike').innerHTML = `<span class="progress-percentage">${Math.round((weekly.bike / WEEKLY_GOALS.bike) * 100)}%</span> of weekly goal (${weekly.bike}/${WEEKLY_GOALS.bike} min)`;
         document.getElementById('progress-strength').innerHTML = `<span class="progress-percentage">${Math.round((weekly.strength / WEEKLY_GOALS.strength) * 100)}%</span> of weekly goal (${weekly.strength}/${WEEKLY_GOALS.strength} min)`;
-        const totalWeeklyReps = weekly.crunches + weekly.pullups;
-        const totalWeeklyRepsGoal = WEEKLY_GOALS.crunches + WEEKLY_GOALS.pullups;
+        const totalWeeklyReps = weekly.crunches;
+        const totalWeeklyRepsGoal = WEEKLY_GOALS.crunches;
         document.getElementById('progress-reps').innerHTML = `<span class="progress-percentage">${Math.round((totalWeeklyReps / totalWeeklyRepsGoal) * 100)}%</span> of weekly goal (${totalWeeklyReps.toLocaleString()}/${totalWeeklyRepsGoal.toLocaleString()} reps)`;
     }
 
